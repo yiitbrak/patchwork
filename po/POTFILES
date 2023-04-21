@@ -1,0 +1,6 @@
+data/org.nidi.patchwork.desktop.in
+data/org.nidi.patchwork.appdata.xml.in
+data/org.nidi.patchwork.gschema.xml
+src/main.c
+src/patchwork-window.c
+src/patchwork-window.ui

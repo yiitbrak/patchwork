@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=patchwork
+Exec=patchwork
+Icon=org.nidi.patchwork
+Terminal=false
+Type=Application
+Categories=GTK;
+StartupNotify=true

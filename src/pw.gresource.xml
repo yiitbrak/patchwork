@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/nidi/patchwork">
+    <file preprocess="xml-stripblanks">res/ui/pw-window.ui</file>
+    <file preprocess="xml-stripblanks">res/ui/pw-node.ui</file>
+    <file>res/css/pw-node.css</file>
+    <file>res/css/pw-pad.css</file>
+    <file>res/css/main.css</file>
+    <file preprocess="xml-stripblanks">gtk/help-overlay.ui</file>
+  </gresource>
+</gresources>
+
