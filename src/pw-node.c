@@ -258,6 +258,20 @@ pw_node_set_ypos (PwNode *self, gint Y)
   gtk_widget_queue_resize (GTK_WIDGET (self));
 }
 
+const char*
+pw_node_get_title(PwNode* self)
+{
+  const char* t;
+  g_object_get(self,"title",&t,NULL);
+  return t;
+}
+
+void
+pw_node_set_title(PwNode* self, const char* title)
+{
+  g_object_set (self, "title", title, NULL);
+}
+
 void
 pw_node_append_pad (PwNode *self, PwPad *pad, int direction)
 {

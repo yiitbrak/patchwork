@@ -1,5 +1,6 @@
 #include "pw-canvas.h"
 #include "pw-dummy.h"
+#include "pw-pipewire.h"
 #include "pw-node.h"
 #include "pw-view-controller.h"
 
@@ -201,9 +202,9 @@ snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
 
   gtk_snapshot_push_repeat (snapshot, &alloc, NULL);
 
-  repeat_rect = GRAPHENE_RECT_INIT (15, 0, 1, len);
+  repeat_rect = GRAPHENE_RECT_INIT (len, 0, 1, len);
   gtk_snapshot_append_color (snapshot, &color, &repeat_rect);
-  repeat_rect = GRAPHENE_RECT_INIT (0, 15, len, 1);
+  repeat_rect = GRAPHENE_RECT_INIT (0, len, len, 1);
   gtk_snapshot_append_color (snapshot, &color, &repeat_rect);
   gtk_snapshot_pop (snapshot);
 }
@@ -463,7 +464,7 @@ pw_canvas_init (PwCanvas *self)
 {
   GtkWidget *widget = GTK_WIDGET (self);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
-  PwDummy *con = pw_dummy_new ();
+  PwPipewire *con = pw_pipewire_new (self);
   priv->controller = G_OBJECT (con);
 
   priv->dr_src = gtk_drag_source_new ();
@@ -482,5 +483,5 @@ pw_canvas_init (PwCanvas *self)
   g_signal_connect (priv->dr_tgt, "motion", G_CALLBACK (motion_cb), self);
   gtk_widget_add_controller (widget, GTK_EVENT_CONTROLLER (priv->dr_tgt));
 
-  _tmp_canv_init (self);
+  pw_pipewire_run(con);
 }

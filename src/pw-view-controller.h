@@ -38,6 +38,7 @@ struct _PwViewControllerInterface
   void (*add_node) (GObject *self, PwCanvas *canv, PwNodeData nod);
   void (*add_pad) (GObject *self, PwPadData pad);
   void (*add_link) (GObject *self, PwLinkData link);
+  gboolean (*remove) (GObject *self, gint id);
   PwNode* (*get_node_by_id) (GObject* self, gint id);
   PwPad* (*get_pad_by_id) (GObject* self, gint id);
   void (*node_to_front) (GObject *self, gint nod);
@@ -49,6 +50,7 @@ void pw_view_controller_add_node (GObject *self, PwCanvas *canv,
                                   PwNodeData nod);
 void pw_view_controller_add_link (GObject *self, PwLinkData link);
 void pw_view_controller_add_pad (GObject *self, PwPadData pad);
+gboolean pw_view_controller_remove (GObject *self, gint id);
 PwNode* pw_view_controller_get_node_by_id (GObject* self, gint id);
 PwPad* pw_view_controller_get_pad_by_id (GObject* self, gint id);
 void pw_view_controller_node_to_front(GObject *self, gint nod);

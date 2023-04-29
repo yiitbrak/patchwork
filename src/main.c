@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include <glib/gi18n.h>
+#include <pipewire/pipewire.h>
 
 #include "pw-application.h"
 #include "pw-view-controller.h"
@@ -29,6 +30,8 @@ int
 main (int   argc,
       char *argv[])
 {
+  g_set_prgname("Patchwork");
+  pw_init(&argc, &argv);
 	g_autoptr(PwApplication) app = NULL;
 	int ret;
 
@@ -39,5 +42,6 @@ main (int   argc,
 	app = pw_application_new ("org.nidi.patchwork", G_APPLICATION_DEFAULT_FLAGS);
 	ret = g_application_run (G_APPLICATION (app), argc, argv);
 
+  pw_deinit();
 	return ret;
 }

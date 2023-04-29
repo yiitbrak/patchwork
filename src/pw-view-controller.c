@@ -47,6 +47,16 @@ pw_view_controller_add_pad (GObject *this, PwPadData pad)
   iface->add_pad (this, pad);
 }
 
+gboolean
+pw_view_controller_remove (GObject *this, gint id)
+{
+  PwViewControllerInterface *iface;
+  g_return_val_if_fail (PW_IS_VIEW_CONTROLLER (this),false);
+
+  iface = PW_VIEW_CONTROLLER_GET_IFACE (this);
+  return iface->remove(this, id);
+}
+
 PwNode*
 pw_view_controller_get_node_by_id (GObject* this, gint id)
 {
