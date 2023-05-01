@@ -9,6 +9,8 @@ typedef struct
   gdouble scale;
   gint dr_x, dr_y; // mouse ptr offsets in canvas units
   GtkWidget *dr_obj;
+  GtkAdjustment* adj[2];
+  GtkScrollablePolicy scroll_policy[2];
 
   GObject *controller;
   GtkDragSource *dr_src;
@@ -16,11 +18,16 @@ typedef struct
 } PwCanvasPrivate;
 
 G_DEFINE_TYPE_WITH_CODE (PwCanvas, pw_canvas, GTK_TYPE_WIDGET,
+                         G_IMPLEMENT_INTERFACE(GTK_TYPE_SCROLLABLE, NULL)
                          G_ADD_PRIVATE (PwCanvas))
 
 enum
 {
   PROP_0,
+  PROP_HADJUSTMENT,
+  PROP_VADJUSTMENT,
+  PROP_HSCROLL_POLICY,
+  PROP_VSCROLL_POLICY,
   PROP_ZOOM,
   PROP_CONTROLLER,
   N_PROPS
@@ -77,6 +84,58 @@ pw_canvas_finalize (GObject *object)
 }
 
 static void
+set_scroll_policy(PwCanvas *self, GtkOrientation or, GtkScrollablePolicy pol)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+
+  if(priv->scroll_policy[or] == pol)
+    return;
+
+  priv->scroll_policy[or] = pol;
+  gtk_widget_queue_resize (GTK_WIDGET (self));
+
+  g_object_notify_by_pspec (G_OBJECT (self), (or == GTK_ORIENTATION_HORIZONTAL)
+                            ? properties[PROP_HSCROLL_POLICY]:
+                            properties[PROP_VSCROLL_POLICY]);
+}
+
+static void canvas_adjustment_value_changed(GtkAdjustment* adj, gpointer data) {
+  gtk_widget_queue_allocate(GTK_WIDGET(data));
+}
+
+static void canvas_remove_adjustment(PwCanvas       *self,
+                                     GtkOrientation  or)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+  GtkAdjustment* adj = priv->adj[or];
+
+  if (adj) {
+    g_signal_handlers_disconnect_by_func(adj, canvas_adjustment_value_changed, self);
+    g_object_unref(adj);
+    priv->adj[or]=NULL;
+  }
+}
+
+static void
+set_adjustment(PwCanvas* self, GtkOrientation or, GObject* obj)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+  GtkAdjustment* adj = GTK_ADJUSTMENT(obj);
+
+  if(priv->adj[or] == adj)
+    return;
+
+  canvas_remove_adjustment(self, or);
+  priv->adj[or] = adj;
+  printf("floatin: %d\n",g_object_is_floating(adj));
+  g_object_ref_sink(adj);
+
+  g_signal_connect(adj, "value-changed",
+                   G_CALLBACK(canvas_adjustment_value_changed), self);
+  canvas_adjustment_value_changed(adj, self);
+}
+
+static void
 set_controller (PwCanvas *self, PwViewController *control)
 {
   g_return_if_fail (G_IS_OBJECT (control));
@@ -93,6 +152,18 @@ pw_canvas_get_property (GObject *object, guint prop_id, GValue *value,
 
   switch (prop_id)
     {
+    case PROP_HADJUSTMENT:
+      g_value_set_object(value, self->adj[GTK_ORIENTATION_HORIZONTAL]);
+      break;
+    case PROP_VADJUSTMENT:
+      g_value_set_object(value, self->adj[GTK_ORIENTATION_VERTICAL]);
+      break;
+    case PROP_HSCROLL_POLICY:
+      g_value_set_enum(value, self->scroll_policy[GTK_ORIENTATION_HORIZONTAL]);
+      break;
+    case PROP_VSCROLL_POLICY:
+      g_value_set_enum(value, self->scroll_policy[GTK_ORIENTATION_VERTICAL]);
+      break;
     case PROP_ZOOM:
       g_value_set_double (value, self->scale);
       break;
@@ -105,6 +176,14 @@ pw_canvas_get_property (GObject *object, guint prop_id, GValue *value,
 }
 
 static void
+set_zoom(PwCanvas* self, gdouble zoom)
+{
+  PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
+  priv->scale = zoom;
+  gtk_widget_queue_allocate (GTK_WIDGET (self));
+}
+
+static void
 pw_canvas_set_property (GObject *object, guint prop_id, const GValue *value,
                         GParamSpec *pspec)
 {
@@ -113,9 +192,20 @@ pw_canvas_set_property (GObject *object, guint prop_id, const GValue *value,
 
   switch (prop_id)
     {
+    case PROP_HADJUSTMENT:
+      set_adjustment(self, GTK_ORIENTATION_HORIZONTAL, g_value_get_object(value));
+      break;
+    case PROP_VADJUSTMENT:
+      set_adjustment(self, GTK_ORIENTATION_VERTICAL, g_value_get_object(value));
+      break;
+    case PROP_HSCROLL_POLICY:
+      set_scroll_policy(self,GTK_ORIENTATION_HORIZONTAL, g_value_get_enum(value));
+      break;
+    case PROP_VSCROLL_POLICY:
+      set_scroll_policy(self,GTK_ORIENTATION_VERTICAL, g_value_get_enum(value));
+      break;
     case PROP_ZOOM:
-      priv->scale = g_value_get_double (value);
-      gtk_widget_queue_allocate (GTK_WIDGET (self));
+      set_zoom(self, g_value_get_double(value));
       break;
     case PROP_CONTROLLER:
       set_controller (self, g_value_get_object (value));
@@ -149,6 +239,8 @@ allocate_node (GtkWidget *self, GtkWidget *child)
   int x, y, w, h;
   PwNode *nod = PW_NODE (child);
   pw_node_get_pos (nod, &x, &y);
+  int voffset = gtk_adjustment_get_value(priv->adj[GTK_ORIENTATION_VERTICAL]);
+  int hoffset = gtk_adjustment_get_value(priv->adj[GTK_ORIENTATION_HORIZONTAL]);
 
   gtk_widget_measure (child, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &w, NULL,
                       NULL);
@@ -157,28 +249,80 @@ allocate_node (GtkWidget *self, GtkWidget *child)
 
   GskTransform *tr = gsk_transform_new ();
   tr = gsk_transform_scale (tr, priv->scale, priv->scale);
-  graphene_point_t pt = { .x = x, .y = y };
+  graphene_point_t pt = { .x = x-hoffset, .y = y-voffset };
   tr = gsk_transform_translate (tr, &pt);
 
   gtk_widget_allocate (child, w, h, -1, tr);
+}
+
+/*
+ * Returns a rectangle that contains all nodes. In unscrolled screen (scaled) space
+ */
+static graphene_rect_t
+canvas_get_node_bounds (PwCanvas* self)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+  gfloat xmin=G_MAXFLOAT,ymin=G_MAXFLOAT,xmax=G_MINFLOAT,ymax=G_MINFLOAT;
+
+  GtkWidget* child = gtk_widget_get_first_child(GTK_WIDGET(self));
+  while(child){
+    PwNode* nod = PW_NODE(child);
+    GtkAllocation al;
+    gtk_widget_get_allocation(child, &al);
+
+    xmin = MIN(xmin,al.x);
+    ymin = MIN(ymin,al.y);
+    xmax = MAX(xmax, al.x+al.width);
+    ymax = MAX(ymax, al.y+al.height);
+
+    child = gtk_widget_get_next_sibling(child);
+  }
+  graphene_rect_t res = GRAPHENE_RECT_INIT(xmin, ymin, xmax, ymax);
+
+  return res;
+}
+
+static void
+canvas_configure_adj(PwCanvas* self, GtkOrientation or,graphene_rect_t bounds, int length)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+  GtkAdjustment* adj = (or==GTK_ORIENTATION_VERTICAL)?priv->adj[GTK_ORIENTATION_VERTICAL]:priv->adj[GTK_ORIENTATION_HORIZONTAL];
+  if(!adj)
+    return;
+  gdouble value, lower, upper, step_inc, page_inc, page_size;
+  gdouble old_value = gtk_adjustment_get_value(adj);
+
+  value = old_value;
+
+  lower = 0;//(or==GTK_ORIENTATION_VERTICAL)?bounds.origin.y:bounds.origin.x;
+  upper = 10000;//(or==GTK_ORIENTATION_VERTICAL)?bounds.size.height:bounds.size.width;
+  step_inc = 0;
+  page_inc = 0;
+  page_size = length;
+
+
+  gtk_adjustment_configure(adj, value, lower, upper, step_inc, page_inc, page_size);
 }
 
 static void
 pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
                          int baseline)
 {
-  GtkWidget *child = gtk_widget_get_first_child (widget);
-  while (child)
-    {
-      if (PW_IS_NODE (child))
-        {
-          allocate_node (widget, child);
-        }
-      else
-        {
-          child = gtk_widget_get_next_sibling (widget);
-          g_log ("ugagagagu", G_LOG_LEVEL_CRITICAL, "Uh oooooooh, stinky");
-        }
+  PwCanvas* self = PW_CANVAS(widget);
+
+  graphene_rect_t bounds = canvas_get_node_bounds(self);
+  canvas_configure_adj(self, GTK_ORIENTATION_HORIZONTAL, bounds, width);
+  canvas_configure_adj(self, GTK_ORIENTATION_VERTICAL, bounds, height);
+
+    GtkWidget *child = gtk_widget_get_first_child (widget);
+  while (child){
+      if (PW_IS_NODE (child)){
+        allocate_node (widget, child);
+      }
+      else{
+        child = gtk_widget_get_next_sibling (widget);
+        g_warning("Non-node widget on canvas\n");
+      }
 
       child = gtk_widget_get_next_sibling (child);
     }
@@ -193,19 +337,28 @@ snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
   gtk_widget_get_allocation (widget, &alt);
   graphene_rect_t alloc
       = { .origin = { 0, 0 }, .size = { alt.width, alt.height } };
-  graphene_rect_t repeat_rect;
+  graphene_rect_t grid_cell;
 
-  gint len = 25 * priv->scale;
+  gtk_snapshot_push_repeat (snapshot, &alloc, NULL);
 
   float val = 0.5 + (adw_style_manager_get_dark (style) ? -1 : 1) * 0.25;
   const GdkRGBA color = { val, val, val, 1.0f };
 
-  gtk_snapshot_push_repeat (snapshot, &alloc, NULL);
 
-  repeat_rect = GRAPHENE_RECT_INIT (len, 0, 1, len);
-  gtk_snapshot_append_color (snapshot, &color, &repeat_rect);
-  repeat_rect = GRAPHENE_RECT_INIT (0, len, len, 1);
-  gtk_snapshot_append_color (snapshot, &color, &repeat_rect);
+  gdouble scale = priv->scale;
+  gint vval = gtk_adjustment_get_value(priv->adj[GTK_ORIENTATION_VERTICAL]);
+  gint hval = gtk_adjustment_get_value(priv->adj[GTK_ORIENTATION_HORIZONTAL]);
+  const int GRID_SIZE = 25;
+  gint len = GRID_SIZE * scale;
+  hval= ((int)((GRID_SIZE- hval%GRID_SIZE)*scale)%len) ;
+  vval= ((int)((GRID_SIZE- vval%GRID_SIZE)*scale)%len) ;
+  //vertical line
+  grid_cell = GRAPHENE_RECT_INIT ((int)hval, 0, 1, len);
+  gtk_snapshot_append_color (snapshot, &color, &grid_cell);
+  //horizontal line
+  grid_cell = GRAPHENE_RECT_INIT (0, (int)vval, len, 1);
+  gtk_snapshot_append_color (snapshot, &color, &grid_cell);
+
   gtk_snapshot_pop (snapshot);
 }
 
@@ -304,6 +457,13 @@ pw_canvas_class_init (PwCanvasClass *klass)
   widget_class->measure = pw_canvas_measure;
   widget_class->size_allocate = pw_canvas_size_allocate;
   widget_class->snapshot = pw_canvas_snapshot;
+
+  // Implmeent GtkScrollable
+  gpointer iface = g_type_default_interface_peek (GTK_TYPE_SCROLLABLE);
+  properties[PROP_HADJUSTMENT] = g_param_spec_override ("hadjustment", g_object_interface_find_property (iface, "hadjustment"));
+  properties[PROP_VADJUSTMENT] = g_param_spec_override ("vadjustment", g_object_interface_find_property (iface, "vadjustment"));
+  properties[PROP_HSCROLL_POLICY] = g_param_spec_override ("hscroll-policy", g_object_interface_find_property (iface, "hscroll-policy"));
+  properties[PROP_VSCROLL_POLICY] = g_param_spec_override ("vscroll-policy", g_object_interface_find_property (iface, "vscroll-policy"));
 
   properties[PROP_ZOOM]
       = g_param_spec_double ("zoom", "Zoom", "Zoom/scale of teh canvas", 0.1,

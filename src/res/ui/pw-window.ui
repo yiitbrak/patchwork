@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"/>
-  <requires lib="Adw" version="1.0"/>
+  <requires lib="gtk" version="4.0" />
+  <requires lib="Adw" version="1.0" />
   <template class="PwWindow" parent="AdwApplicationWindow">
     <property name="default-width">600</property>
     <property name="default-height">300</property>
@@ -10,9 +10,7 @@
         <property name="orientation">vertical</property>
         <child>
           <object class="GtkHeaderBar" id="header_bar">
-          <child type="start">
-
-
+            <child type="start">
               <object class="GtkScale" id="zoom_scale">
                 <property name="adjustment">
                   <object class="GtkAdjustment" id="zoom_adj">
@@ -24,7 +22,6 @@
                 </property>
               </object>
             </child>
-
             <child type="end">
               <object class="GtkMenuButton">
                 <property name="icon-name">open-menu-symbolic</property>
@@ -34,9 +31,13 @@
           </object>
         </child>
         <child>
-          <object class="PwCanvas" id="main_vp">
-            <property name="hexpand">true</property>
-            <property name="vexpand">true</property>
+          <object class="GtkScrolledWindow" id="sw">
+            <child>
+              <object class="PwCanvas" id="main_vp">
+                <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>
@@ -59,4 +60,3 @@
     </section>
   </menu>
 </interface>
-
