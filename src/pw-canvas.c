@@ -643,5 +643,7 @@ pw_canvas_init (PwCanvas *self)
   g_signal_connect (priv->dr_tgt, "motion", G_CALLBACK (motion_cb), self);
   gtk_widget_add_controller (widget, GTK_EVENT_CONTROLLER (priv->dr_tgt));
 
+  gtk_widget_set_overflow(widget, GTK_OVERFLOW_HIDDEN);
+
   pw_pipewire_run(con);
 }
