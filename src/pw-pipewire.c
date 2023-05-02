@@ -2,7 +2,8 @@
 #include "pw-view-controller.h"
 #include <pipewire/pipewire.h>
 
-#define G_LOG_DOMAIN "Patchwork-pw"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch-enum"
 
 struct _PwPipewire
 {
@@ -65,6 +66,9 @@ static PwLinkData *pw_pipewire_get_link_by_id (GObject *this, gint id);
 ///////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////
+static MessageType
+reg_get_type (const char *type);
+
 static void
 default_changed_handler (PwPipewire *self, gpointer user_data);
 ///////////////////////////////////////////////////////////
@@ -380,6 +384,7 @@ default_changed_handler (PwPipewire *self, gpointer user_data)
           pw_pipewire_remove (G_OBJECT (self), *(guint32 *) msg->data);
           break;
         case MSG_OTHER:
+        default:
           break;
         }
     }
@@ -399,7 +404,7 @@ pw_pipewire_init (PwPipewire *self)
 }
 
 ////////////////////////
-MessageType
+static MessageType
 reg_get_type (const char *type)
 {
   MessageType res;
@@ -556,3 +561,5 @@ pw_pipewire_run (PwPipewire *self)
   pw_thread_loop_start (self->loop);
   self->idle_id = g_timeout_add (150, idle_check_query, self);
 }
+
+#pragma GCC diagnostic pop

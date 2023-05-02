@@ -586,40 +586,6 @@ motion_cb (GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
 }
 
 static void
-_tmp_canv_init (PwCanvas *self)
-{
-  PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
-  PwDummy *con = PW_DUMMY (priv->controller);
-
-  PwViewControllerInterface *iface = PW_VIEW_CONTROLLER_GET_IFACE (con);
-
-  PwNodeData dat = { 1, "sample-1" };
-  iface->add_node (G_OBJECT (con), self, dat);
-
-  PwPadData bat = {
-    .id = 2, .parent_id = 1, .name = "out", .direction = PW_PAD_DIRECTION_OUT
-  };
-  iface->add_pad (G_OBJECT (con), bat);
-
-  PwPadData gat = {
-    .id = 3, .parent_id = 1, .name = "in", .direction = PW_PAD_DIRECTION_IN
-  };
-  iface->add_pad (G_OBJECT (con), gat);
-
-  dat.id = 4;
-  dat.title = "sample-2";
-  iface->add_node (G_OBJECT (con), self, dat);
-
-  bat.id = 5;
-  bat.parent_id = 4;
-  iface->add_pad (G_OBJECT (con), bat);
-
-  gat.id = 6;
-  gat.parent_id = 4;
-  iface->add_pad (G_OBJECT (con), gat);
-}
-
-static void
 pw_canvas_init (PwCanvas *self)
 {
   GtkWidget *widget = GTK_WIDGET (self);
