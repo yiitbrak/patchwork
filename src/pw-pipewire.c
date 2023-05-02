@@ -39,9 +39,7 @@ typedef struct
 
 static void pw_view_controller_iface_init (PwViewControllerInterface *iface);
 
-G_DEFINE_TYPE_WITH_CODE (PwPipewire, pw_pipewire, G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (PW_TYPE_VIEW_CONTROLLER,
-                                                pw_view_controller_iface_init))
+G_DEFINE_TYPE_WITH_CODE (PwPipewire, pw_pipewire, G_TYPE_OBJECT, G_IMPLEMENT_INTERFACE (PW_TYPE_VIEW_CONTROLLER, pw_view_controller_iface_init))
 
 enum
 {
@@ -49,7 +47,14 @@ enum
   N_PROPS
 };
 
+enum
+{
+  SIG_CHANGED,
+  N_SIG
+};
+
 static GParamSpec *properties[N_PROPS];
+static int signals[N_SIG];
 
 ///////////////////////////////////////////////////////////
 static PwNode *pw_pipewire_get_node_by_id (GObject *self, gint id);
@@ -57,6 +62,11 @@ static PwNode *pw_pipewire_get_node_by_id (GObject *self, gint id);
 static PwPad *pw_pipewire_get_pad_by_id (GObject *this, gint id);
 
 static PwLinkData *pw_pipewire_get_link_by_id (GObject *this, gint id);
+///////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////
+static void
+default_changed_handler (PwPipewire *self, gpointer user_data);
 ///////////////////////////////////////////////////////////
 
 PwPipewire *
@@ -76,11 +86,11 @@ free_nodes (gpointer data)
 static void
 pw_pipewire_dispose (GObject *object)
 {
-  PwPipewire *self = (PwPipewire *)object;
+  PwPipewire *self = (PwPipewire *) object;
 
   g_source_remove (self->idle_id);
 
-  pw_proxy_destroy ((struct pw_proxy *)self->registry);
+  pw_proxy_destroy ((struct pw_proxy *) self->registry);
   pw_core_disconnect (self->core);
   pw_context_destroy (self->context);
   pw_thread_loop_destroy (self->loop);
@@ -94,14 +104,13 @@ pw_pipewire_dispose (GObject *object)
 static void
 pw_pipewire_finalize (GObject *object)
 {
-  PwPipewire *self = (PwPipewire *)object;
+  PwPipewire *self = (PwPipewire *) object;
 
   G_OBJECT_CLASS (pw_pipewire_parent_class)->finalize (object);
 }
 
 static void
-pw_pipewire_get_property (GObject *object, guint prop_id, GValue *value,
-                          GParamSpec *pspec)
+pw_pipewire_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
 {
   PwPipewire *self = PW_PIPEWIRE (object);
 
@@ -113,8 +122,7 @@ pw_pipewire_get_property (GObject *object, guint prop_id, GValue *value,
 }
 
 static void
-pw_pipewire_set_property (GObject *object, guint prop_id, const GValue *value,
-                          GParamSpec *pspec)
+pw_pipewire_set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec)
 {
   PwPipewire *self = PW_PIPEWIRE (object);
 
@@ -134,6 +142,8 @@ pw_pipewire_class_init (PwPipewireClass *klass)
   object_class->finalize = pw_pipewire_finalize;
   object_class->get_property = pw_pipewire_get_property;
   object_class->set_property = pw_pipewire_set_property;
+
+  signals[SIG_CHANGED] = g_signal_new_class_handler ("changed", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_FIRST, G_CALLBACK (default_changed_handler), NULL, NULL, NULL, G_TYPE_NONE, 0);
 }
 
 static void
@@ -264,7 +274,7 @@ pw_pipewire_get_link_by_id (GObject *this, gint id)
 
   while (l)
     {
-      if (((PwPadData *)l->data)->id == id)
+      if (((PwPadData *) l->data)->id == id)
         return l->data;
 
       l = l->next;
@@ -327,13 +337,13 @@ pw_free_recv_queue (void *data)
     case MSG_NODE_ADDED:
       {
         PwNodeData *dat = msg->data;
-        free ((void *)dat->title);
+        free ((void *) dat->title);
       }
       break;
     case MSG_PORT_ADDED:
       {
         PwPadData *dat = msg->data;
-        free ((void *)dat->name);
+        free ((void *) dat->name);
       }
       break;
     case MSG_REMOVED:
@@ -346,38 +356,33 @@ pw_free_recv_queue (void *data)
   free (msg);
 }
 
-static gboolean
-idle_check_query (void *user_data)
+static void
+default_changed_handler (PwPipewire *self, gpointer user_data)
 {
-  PwPipewire *self = PW_PIPEWIRE (user_data);
-
-  if (g_async_queue_length (self->pw_recv) <= 0)
+  Message *msg;
+  while (g_async_queue_length (self->pw_recv))
     {
-      return G_SOURCE_CONTINUE;
+      msg = g_async_queue_pop (self->pw_recv);
+
+      switch (msg->type)
+        {
+        case MSG_NODE_ADDED:
+          pw_pipewire_add_node (G_OBJECT (self), self->canvas,
+                                *(PwNodeData *) msg->data);
+          break;
+        case MSG_PORT_ADDED:
+          pw_pipewire_add_pad (G_OBJECT (self), *(PwPadData *) msg->data);
+          break;
+        case MSG_LINK_ADDED:
+          pw_pipewire_add_link (G_OBJECT (self), *(PwLinkData *) msg->data);
+          break;
+        case MSG_REMOVED:
+          pw_pipewire_remove (G_OBJECT (self), *(guint32 *) msg->data);
+          break;
+        case MSG_OTHER:
+          break;
+        }
     }
-
-  Message *msg = g_async_queue_pop (self->pw_recv);
-
-  switch (msg->type)
-    {
-    case MSG_NODE_ADDED:
-      pw_pipewire_add_node (G_OBJECT (self), self->canvas,
-                            *(PwNodeData *)msg->data);
-      break;
-    case MSG_PORT_ADDED:
-      pw_pipewire_add_pad (G_OBJECT (self), *(PwPadData *)msg->data);
-      break;
-    case MSG_LINK_ADDED:
-      pw_pipewire_add_link (G_OBJECT (self), *(PwLinkData *)msg->data);
-      break;
-    case MSG_REMOVED:
-      pw_pipewire_remove (G_OBJECT (self), *(guint32 *)msg->data);
-      break;
-    case MSG_OTHER:
-      break;
-    }
-
-  return G_SOURCE_CONTINUE;
 }
 
 static void
@@ -484,9 +489,7 @@ reg_fill_link (Message *msg, guint32 id, const struct spa_dict *props)
 }
 
 static void
-reg_event_global (void *data, guint32 id, guint32 permissions,
-                  const char *type, guint32 version,
-                  const struct spa_dict *props)
+reg_event_global (void *data, guint32 id, guint32 permissions, const char *type, guint32 version, const struct spa_dict *props)
 {
   PwPipewire *self = PW_PIPEWIRE (data);
   Message *msg = malloc (sizeof (Message));
@@ -521,21 +524,29 @@ remove_event_global (void *data, uint32_t id)
   msg->type = MSG_REMOVED;
 
   msg->data = malloc (sizeof (guint32));
-  *(guint32 *)msg->data = id;
+  *(guint32 *) msg->data = id;
 
   g_async_queue_push (self->pw_recv, msg);
 }
 
-static const struct pw_registry_events registry_events
-    = { PW_VERSION_REGISTRY_EVENTS, .global = reg_event_global,
-        .global_remove = remove_event_global };
+static const struct pw_registry_events
+    registry_events = { PW_VERSION_REGISTRY_EVENTS, .global = reg_event_global,
+                        .global_remove = remove_event_global };
+
+static gboolean
+idle_check_query (gpointer data)
+{
+  PwPipewire *self = PW_PIPEWIRE (data);
+  if (g_async_queue_length (self->pw_recv) != 0)
+    g_signal_emit (self, signals[SIG_CHANGED], 0);
+  return G_SOURCE_CONTINUE;
+}
 
 void
 pw_pipewire_run (PwPipewire *self)
 {
   self->loop = pw_thread_loop_new ("pipewire_thrd", NULL);
-  self->context
-      = pw_context_new (pw_thread_loop_get_loop (self->loop), NULL, 0);
+  self->context = pw_context_new (pw_thread_loop_get_loop (self->loop), NULL, 0);
   self->core = pw_context_connect (self->context, NULL, 0);
 
   self->registry = pw_core_get_registry (self->core, PW_VERSION_CORE, 0);
@@ -543,6 +554,5 @@ pw_pipewire_run (PwPipewire *self)
                             &registry_events, self);
 
   pw_thread_loop_start (self->loop);
-
-  self->idle_id = g_idle_add (idle_check_query, self);
+  self->idle_id = g_timeout_add (150, idle_check_query, self);
 }
