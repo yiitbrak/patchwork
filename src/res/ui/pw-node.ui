@@ -17,11 +17,17 @@
             <child>
               <object class="GtkBox" id="in_box">
                 <property name="orientation">vertical</property>
+                <property name="spacing">2</property>
+                <property name="halign">GTK_ALIGN_START</property>
+                <property name="hexpand">True</property>
               </object>
             </child>
             <child>
               <object class="GtkBox" id="out_box">
                 <property name="orientation">vertical</property>
+                <property name="spacing">2</property>
+                <property name="halign">GTK_ALIGN_END</property>
+                <property name="hexpand">True</property>
               </object>
             </child>
           </object>
