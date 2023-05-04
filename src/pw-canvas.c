@@ -308,22 +308,16 @@ pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
                          int baseline)
 {
   PwCanvas* self = PW_CANVAS(widget);
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
 
   graphene_rect_t bounds = canvas_get_node_bounds(self);
   canvas_configure_adj(self, GTK_ORIENTATION_HORIZONTAL, bounds, width);
   canvas_configure_adj(self, GTK_ORIENTATION_VERTICAL, bounds, height);
 
-    GtkWidget *child = gtk_widget_get_first_child (widget);
-  while (child){
-      if (PW_IS_NODE (child)){
-        allocate_node (widget, child);
-      }
-      else{
-        child = gtk_widget_get_next_sibling (widget);
-        g_warning("Non-node widget on canvas\n");
-      }
-
-      child = gtk_widget_get_next_sibling (child);
+  GList *list = pw_view_controller_get_node_list(priv->controller);
+  while (list){
+      allocate_node (widget, GTK_WIDGET(list->data));
+      list = list->next;
     }
 }
 
@@ -522,8 +516,7 @@ drag_begin_cb (GtkDragSource *self, GdkDrag *drag, gpointer user_data)
       PwNode* nod = PW_NODE(priv->dr_obj);
 
       gdk_drag_set_hotspot (drag, 0, 0);
-      PwViewControllerInterface *iface = PW_VIEW_CONTROLLER_GET_IFACE (priv->controller);
-      iface->node_to_front(priv->controller, pw_node_get_id(nod));
+      pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
     }
 }
 
