@@ -350,12 +350,13 @@ pw_free_recv_queue (void *data)
         free ((void *) dat->name);
       }
       break;
+    case MSG_LINK_ADDED:
+      g_free(msg->data);
+      break;
     case MSG_REMOVED:
       free (msg->data);
-      break;
     default:
       break;
-      ;
     }
   free (msg);
 }

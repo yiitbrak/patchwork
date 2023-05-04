@@ -432,6 +432,7 @@ snapshot_links (GtkWidget* widget, GtkSnapshot* snapshot)
 
       link=link->next;
     }
+  cairo_destroy(cai);
 }
 
 static void
