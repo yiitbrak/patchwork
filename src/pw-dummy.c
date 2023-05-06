@@ -137,7 +137,7 @@ pw_dummy_add_pad (GObject *this, PwPadData data)
   PwNode *nod;
   g_return_if_fail (nod = pw_dummy_get_node_by_id(G_OBJECT(con), data.parent_id));
 
-  PwPad *pad = pw_pad_new_with_name (data.id, data.direction, data.name);
+  PwPad *pad = pw_pad_new_with_name (data.id, data.direction, pw_node_get_media_type(nod), data.name);
 
   g_signal_connect(pad , "link-added" , G_CALLBACK(_link_added_cb), con);
 

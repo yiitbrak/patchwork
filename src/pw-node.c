@@ -1,10 +1,12 @@
 #include "pw-node.h"
+#include "pw-types.h"
 
 typedef struct
 {
   gint x, y;
   guint32 id;
   GList *in, *out;
+  PwPadType media_type;
 
   GtkBox *hbox, *in_box, *out_box, *main_box;
   GtkLabel *node_label;
@@ -19,6 +21,7 @@ enum
   PROP_TITLE,
   PROP_XPOS,
   PROP_YPOS,
+  PROP_TYPE,
   N_PROPS
 };
 
@@ -100,9 +103,22 @@ pw_node_get_property (GObject *object, guint prop_id, GValue *value,
       g_value_set_int (value, y);
       }
       break;
+    case PROP_TYPE:
+      g_value_set_enum(value, priv->media_type);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
     }
+}
+
+static void
+set_media_type(PwNode* self, PwPadType type)
+{
+  PwNodePrivate* priv = pw_node_get_instance_private(self);
+
+  priv->media_type = type;
+
+  // TODO: Update all existing pads accordingly
 }
 
 static void
@@ -125,6 +141,9 @@ pw_node_set_property (GObject *object, guint prop_id, const GValue *value,
       break;
     case PROP_YPOS:
       pw_node_set_ypos (self, g_value_get_int (value));
+      break;
+    case PROP_TYPE:
+      set_media_type(self, g_value_get_enum(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -184,6 +203,9 @@ pw_node_class_init (PwNodeClass *klass)
   properties[PROP_YPOS]
       = g_param_spec_int ("y-pos", "Y position", "Y component of node",
                           G_MININT32, G_MAXINT32, 0, G_PARAM_READWRITE);
+  properties[PROP_TYPE] = g_param_spec_enum(
+      "type", "Type", "Type of the node", PW_TYPE_PAD_TYPE,
+      PW_PAD_TYPE_OTHER, G_PARAM_READWRITE|G_PARAM_CONSTRUCT);
   g_object_class_install_properties (object_class, N_PROPS, properties);
 
   signals[SIG_LINK_ADDED] = g_signal_new (
@@ -300,4 +322,20 @@ pw_node_append_pad (PwNode *self, PwPad *pad, int direction)
 
   *l = g_list_append (*l, pad);
   gtk_box_append (box, GTK_WIDGET (pad));
+}
+
+PwPadType
+pw_node_get_media_type(PwNode* self)
+{
+  g_return_val_if_fail(PW_IS_NODE(self) , PW_PAD_TYPE_OTHER);
+  PwPadType t;
+  g_object_get(self , "type", &t,NULL);
+  return t;
+}
+
+void
+pw_node_set_media_type(PwPad* self, PwPadType type)
+{
+  g_return_if_fail(PW_IS_NODE(self));
+  g_object_set(self, "type", &type, NULL);
 }

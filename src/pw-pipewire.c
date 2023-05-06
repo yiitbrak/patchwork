@@ -161,7 +161,7 @@ pw_pipewire_add_node (GObject *self, PwCanvas *canv, PwNodeData nod)
   PwNode *nnod = pw_node_new (nod.id);
   pw_node_set_xpos (nnod, cord);
   pw_node_set_ypos (nnod, cord);
-  g_object_set (G_OBJECT (nnod), "title", nod.title, NULL);
+  g_object_set (G_OBJECT (nnod), "title", nod.title, "type", nod.type ,NULL);
 
   con->nodes = g_list_prepend (con->nodes, nnod);
   gtk_widget_set_parent (GTK_WIDGET (nnod), GTK_WIDGET (canv));
@@ -178,7 +178,7 @@ pw_pipewire_add_pad (GObject *self, PwPadData data)
   g_return_if_fail (
       nod = pw_pipewire_get_node_by_id (G_OBJECT (con), data.parent_id));
 
-  PwPad *pad = pw_pad_new_with_name (data.id, data.direction, data.name);
+  PwPad *pad = pw_pad_new_with_name (data.id, data.direction, pw_node_get_media_type(nod), data.name);
 
   // g_signal_connect(pad , "link-added" , G_CALLBACK(_link_added_cb), con);
 
@@ -421,12 +421,33 @@ reg_get_type (const char *type)
   return res;
 }
 
+
+static PwPadType
+port_get_type(const struct spa_dict *props)
+{
+  const char* str = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+  if(str == NULL)
+    str = spa_dict_lookup(props, PW_KEY_MEDIA_TYPE);
+  if(str == NULL)
+    return PW_PAD_TYPE_OTHER;
+
+  if(g_strrstr(str, "Audio"))
+    return PW_PAD_TYPE_AUDIO;
+
+  if(g_strrstr(str, "Video"))
+    return PW_PAD_TYPE_VIDEO;
+
+  if(g_strrstr(str, "Midi"))
+    return PW_PAD_TYPE_MIDI;
+
+  return PW_PAD_TYPE_OTHER;
+}
+
 static void
 reg_fill_node (Message *msg, guint32 id, const struct spa_dict *props)
 {
   PwNodeData *dat = malloc (sizeof (PwNodeData));
   const char *name;
-  dat->id = id;
 
   name = spa_dict_lookup (props, PW_KEY_NODE_DESCRIPTION);
   if (name == NULL)
@@ -436,13 +457,17 @@ reg_fill_node (Message *msg, guint32 id, const struct spa_dict *props)
   if (name == NULL)
     name = "Unnamed node";
 
+  PwPadType type = port_get_type(props);
+
+  dat->id = id;
   dat->title = g_strdup (name);
+  dat->type = type;
 
   msg->data = dat;
 }
 
 static void
-reg_fill_port (Message *msg, guint32 id, const struct spa_dict *props)
+reg_fill_port (PwPipewire* self, Message *msg, guint32 id, const struct spa_dict *props)
 {
   PwPadData *dat = malloc (sizeof (PwPadData));
   const char *str;
@@ -507,7 +532,7 @@ reg_event_global (void *data, guint32 id, guint32 permissions, const char *type,
       reg_fill_node (msg, id, props);
       break;
     case MSG_PORT_ADDED:
-      reg_fill_port (msg, id, props);
+      reg_fill_port (self, msg, id, props);
       break;
     case MSG_LINK_ADDED:
       reg_fill_link (msg, id, props);

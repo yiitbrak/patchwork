@@ -10,6 +10,7 @@ typedef struct
 {
   guint32 id;
   const char *title;
+  gint type;
 } PwNodeData;
 
 typedef struct

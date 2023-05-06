@@ -30,4 +30,8 @@ void pw_node_set_title(PwNode* self, const char* title);
 
 void pw_node_append_pad(PwNode* self, PwPad* pad, int direction);
 
+PwPadType pw_node_get_media_type(PwNode* self);
+
+void pw_node_set_media_type(PwPad* self, PwPadType type);
+
 G_END_DECLS

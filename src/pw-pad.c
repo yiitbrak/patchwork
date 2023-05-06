@@ -6,6 +6,7 @@ typedef struct
   guint32 id;
   guint32 parent_id;
   PwPadDirection direction;
+  PwPadType media_type;
   GtkLabel *name;
 
   GtkDropTarget *dr_tgt;
@@ -20,6 +21,7 @@ enum
   PROP_PARENT_ID,
   PROP_DIRECTION,
   PROP_NAME,
+  PROP_TYPE,
   N_PROPS
 };
 
@@ -45,15 +47,15 @@ static gint signals[N_SIG] = {
  */
 
 PwPad *
-pw_pad_new (guint32 id, PwPadDirection dir)
+pw_pad_new (guint32 id, PwPadDirection dir, PwPadType type)
 {
-  return g_object_new (PW_TYPE_PAD, "id", id, "direction", dir, NULL);
+  return g_object_new (PW_TYPE_PAD, "id", id, "direction", dir, "type", type, NULL);
 }
 
 PwPad *
-pw_pad_new_with_name (guint32 id, PwPadDirection dir, const char *name)
+pw_pad_new_with_name (guint32 id, PwPadDirection dir, PwPadType type, const char *name)
 {
-  return g_object_new (PW_TYPE_PAD, "id", id, "direction", dir, "name", name,
+  return g_object_new (PW_TYPE_PAD, "id", id, "direction", dir, "type", type, "name", name,
                        NULL);
 }
 
@@ -75,8 +77,9 @@ pw_pad_finalize (GObject *object)
   G_OBJECT_CLASS (pw_pad_parent_class)->finalize (object);
 }
 
-static void
 
+
+static void
 pw_pad_get_property (GObject *object, guint prop_id, GValue *value,
                      GParamSpec *pspec)
 {
@@ -93,6 +96,9 @@ pw_pad_get_property (GObject *object, guint prop_id, GValue *value,
       break;
     case PROP_DIRECTION:
       g_value_set_enum (value, priv->direction);
+      break;
+    case PROP_TYPE:
+      g_value_set_enum(value, priv->media_type);
       break;
     case PROP_NAME:
       g_value_set_string (value, gtk_label_get_label (priv->name));
@@ -126,6 +132,34 @@ set_prop_direction (PwPad *self, const GValue *value)
   gtk_widget_add_css_class (widget, class);
 }
 
+static const char*
+get_css_class_for_type(PwPadType type)
+{
+  switch(type){
+  case PW_PAD_TYPE_AUDIO:
+    return "audio";
+  case PW_PAD_TYPE_VIDEO:
+    return "video";
+  case PW_PAD_TYPE_MIDI:
+    return "midi";
+  case PW_PAD_TYPE_MIDI_PASSTHROUGH:
+    return "midi_passthough";
+  case PW_PAD_TYPE_OTHER:
+  default:
+    return "other";
+  }
+}
+
+static void
+set_prop_type(PwPad *self, const GValue *value)
+{
+  PwPadPrivate* priv = pw_pad_get_instance_private(self);
+
+  gtk_widget_remove_css_class(GTK_WIDGET(self), get_css_class_for_type(priv->media_type));
+  priv->media_type = g_value_get_enum(value);
+  gtk_widget_add_css_class(GTK_WIDGET(self), get_css_class_for_type(priv->media_type));
+}
+
 static void
 pw_pad_set_property (GObject *object, guint prop_id, const GValue *value,
                      GParamSpec *pspec)
@@ -143,6 +177,9 @@ pw_pad_set_property (GObject *object, guint prop_id, const GValue *value,
       break;
     case PROP_DIRECTION:
       set_prop_direction (self, value);
+      break;
+    case PROP_TYPE:
+      set_prop_type (self, value);
       break;
     case PROP_NAME:
       gtk_label_set_label (priv->name, g_value_get_string (value));
@@ -198,8 +235,11 @@ pw_pad_class_init (PwPadClass *klass)
       = g_param_spec_uint ("parent-id", "Parent id", "Id of the parent", 0, G_MAXUINT, 0,
                            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
   properties[PROP_DIRECTION] = g_param_spec_enum (
-      "direction", "Direction", "Direction of the node", PW_TYPE_PAD_DIRECTION,
+      "direction", "Direction", "Direction of the pad", PW_TYPE_PAD_DIRECTION,
       PW_PAD_DIRECTION_IN, G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+  properties[PROP_TYPE] = g_param_spec_enum(
+      "type", "Type", "Type of the pad", PW_TYPE_PAD_TYPE,
+      PW_PAD_TYPE_OTHER, G_PARAM_READWRITE|G_PARAM_CONSTRUCT);
   properties[PROP_NAME] = g_param_spec_string (
       "name", "Name", "Name of the pad", "", G_PARAM_READWRITE);
   g_object_class_install_properties (object_class, N_PROPS, properties);
@@ -269,4 +309,13 @@ pw_pad_get_direction(PwPad* self)
   PwPadDirection dir;
   g_object_get(self , "direction", &dir,NULL);
   return dir;
+}
+
+PwPadType
+pw_pad_get_media_type(PwPad* self)
+{
+  g_return_val_if_fail(PW_IS_PAD(self) , PW_PAD_TYPE_OTHER);
+  PwPadType t;
+  g_object_get(self , "type", &t,NULL);
+  return t;
 }

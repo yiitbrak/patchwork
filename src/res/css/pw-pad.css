@@ -2,9 +2,6 @@ pad {
 padding: 5px 0px;
 border: 1px solid;
 color: white;
-
-background-color: @blue_3;
-border-color: darker(@blue_3);
 }
 
 pad.in {
@@ -24,3 +21,27 @@ border-radius: 20px 0px 0px 20px;
 border-right-width: 0px;
 }
 
+pad.audio {
+background-color: @blue_3;
+border-color: darker(@blue_3);
+}
+
+pad.midi_passthrough {
+background-color: @green_3;
+border-color: darker(@green_3);
+}
+
+pad.video {
+background-color: @red_3;
+border-color: darker(@red_3);
+}
+
+pad.midi {
+background-color: @purple_3;
+border-color: darker(@purple_3);
+}
+
+pad.other {
+background-color: @dark_2;
+border-color: darker(@dark_2);
+}

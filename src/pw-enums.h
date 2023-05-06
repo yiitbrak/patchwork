@@ -24,3 +24,11 @@ typedef enum {
   PW_PAD_DIRECTION_OUT,
   PW_PAD_DIRECTION_IN,
 }PwPadDirection;
+
+typedef enum {
+  PW_PAD_TYPE_AUDIO,
+  PW_PAD_TYPE_VIDEO,
+  PW_PAD_TYPE_MIDI,
+  PW_PAD_TYPE_MIDI_PASSTHROUGH,
+  PW_PAD_TYPE_OTHER
+}PwPadType;
