@@ -325,6 +325,7 @@ static void
 snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
 {
   AdwStyleManager *style = adw_style_manager_get_default ();
+  gboolean is_dark = adw_style_manager_get_dark (style);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (PW_CANVAS (widget));
   GtkAllocation alt;
   gtk_widget_get_allocation (widget, &alt);
@@ -334,7 +335,7 @@ snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
 
   gtk_snapshot_push_repeat (snapshot, &alloc, NULL);
 
-  float val = 0.5 + (adw_style_manager_get_dark (style) ? -1 : 1) * 0.25;
+  float val = 0.5 + (is_dark ? -1 : 1) * 0.25;
   const GdkRGBA color = { val, val, val, 1.0f };
 
 
@@ -376,6 +377,8 @@ draw_single_link(GtkWidget* widget, cairo_t* cr, PwLinkData* dat)
 {
   PwCanvas* canv = PW_CANVAS(widget);
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
+  AdwStyleManager *style = adw_style_manager_get_default ();
+  gboolean is_dark = adw_style_manager_get_dark (style);
 
   PwPad* p1 = pw_view_controller_get_pad_by_id(G_OBJECT(priv->controller), dat->in);
   PwPad* p2 = pw_view_controller_get_pad_by_id(G_OBJECT(priv->controller), dat->out);
@@ -385,7 +388,7 @@ draw_single_link(GtkWidget* widget, cairo_t* cr, PwLinkData* dat)
   if(!res)
     {g_log("Patchwork" , G_LOG_LEVEL_WARNING , "Bounds checking failed.");}
 
-  int x1,x2,y1,y2, xmid, ymid;
+  int x1,x2,y1,y2;
 
   x2 = rect2.origin.x + rect2.size.width;
   y2 = rect2.origin.y + rect2.size.height/2;
@@ -393,9 +396,8 @@ draw_single_link(GtkWidget* widget, cairo_t* cr, PwLinkData* dat)
   x1 = rect1.origin.x;
   y1 = rect1.origin.y + rect1.size.height/2;
 
-
-
-  cairo_set_source_rgba(cr, 1, 1, 1, 0.6);
+  gint col = (is_dark?1:0);
+  cairo_set_source_rgba(cr, col, col, col, 0.6);
   cairo_set_line_width(cr, 2*priv->scale);
 
   cairo_move_to(cr, x2, y2);
