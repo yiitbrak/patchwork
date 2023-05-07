@@ -512,14 +512,14 @@ drag_begin_cb (GtkDragSource *self, GdkDrag *drag, gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
+  GdkPaintable* empty_icon = gdk_paintable_new_empty(0,0);
+  gtk_drag_source_set_icon (self, empty_icon, 0, 0);
+  g_object_unref(empty_icon);
 
-  if (PW_IS_NODE (priv->dr_obj))
-    {
-      PwNode* nod = PW_NODE(priv->dr_obj);
-
-      gdk_drag_set_hotspot (drag, 0, 0);
-      pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
-    }
+  if (PW_IS_NODE (priv->dr_obj)){
+    PwNode* nod = PW_NODE(priv->dr_obj);
+    pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
+  }
 }
 
 static void

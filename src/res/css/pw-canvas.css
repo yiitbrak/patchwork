@@ -1,0 +1,3 @@
+canvas:drop(active):not(disabled){
+  box-shadow: none;
+}

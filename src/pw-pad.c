@@ -254,6 +254,28 @@ pw_pad_class_init (PwPadClass *klass)
   gtk_widget_class_set_css_name (widget_class, "pad");
 }
 
+static void
+pad_notify_value_cb (GObject* self,
+                     GParamSpec* pspec,
+                     gpointer user_data)
+{
+  PwPad* pad = PW_PAD(user_data);
+  PwPadPrivate* priv = pw_pad_get_instance_private(pad);
+  GtkDropTarget* con = GTK_DROP_TARGET(self);
+  const GValue* val = gtk_drop_target_get_value(con);
+
+  if(!val)
+    return;
+
+  PwPad* recv = PW_PAD(g_value_get_object(val));
+
+  if(priv->direction == pw_pad_get_direction(recv)||
+     priv->media_type != pw_pad_get_media_type(recv))
+  {
+    gtk_drop_target_reject(con);
+  }
+}
+
 static gboolean
 pad_drop_cb (GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
              gpointer user_data)
@@ -262,6 +284,12 @@ pad_drop_cb (GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
   PwPadPrivate *priv = pw_pad_get_instance_private (pad);
 
   PwPad *received = PW_PAD (g_value_get_object (value));
+
+  if(priv->direction == pw_pad_get_direction(received)||
+     priv->media_type != pw_pad_get_media_type(received))
+  {
+    return FALSE;
+  }
 
   g_signal_emit (pad, signals[SIG_LINK_ADDED], 0, pw_pad_get_id (pad),
                  pw_pad_get_id (received));
@@ -279,6 +307,8 @@ pw_pad_init (PwPad *self)
   gtk_widget_set_parent (GTK_WIDGET (priv->name), GTK_WIDGET (self));
 
   priv->dr_tgt = gtk_drop_target_new (PW_TYPE_PAD, GDK_ACTION_MOVE);
+  gtk_drop_target_set_preload(priv->dr_tgt, true);
+  g_signal_connect (priv->dr_tgt, "notify::value", G_CALLBACK (pad_notify_value_cb), self);
   g_signal_connect (priv->dr_tgt, "drop", G_CALLBACK (pad_drop_cb), self);
   gtk_widget_add_controller (GTK_WIDGET (self),
                              GTK_EVENT_CONTROLLER (priv->dr_tgt));
