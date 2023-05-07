@@ -25,22 +25,58 @@ pad.audio {
 background-color: @blue_3;
 }
 
-pad.audio {
-background-color: @blue_3;
+pad.audio:hover {
+background-color: alpha(@blue_3, 0.95);
+}
+
+pad.audio:active {
+background-color: alpha(@blue_3, 0.8);
 }
 
 pad.midi_passthrough {
 background-color: @green_3;
 }
 
+pad.midi_passthrough:hover {
+background-color: alpha(@green_3, 0.95);
+}
+
+pad.midi_passthrough:active {
+background-color: alpha(@green_3, 0.8);
+}
+
 pad.video {
 background-color: @red_3;
+}
+
+pad.video:hover {
+background-color: alpha(@red_3, 0.95);
+}
+
+pad.video:active {
+background-color: alpha(@red_3, 0.8);
 }
 
 pad.midi {
 background-color: @purple_3;
 }
 
+pad.midi:hover {
+background-color: alpha(@purple_3, 0.95);
+}
+
+pad.midi:active {
+background-color: alpha(@purple_3, 0.8);
+}
+
 pad.other {
 background-color: @dark_2;
+}
+
+pad.other:hover {
+background-color: alpha(@dark_2, 0.95);
+}
+
+pad.other:active {
+background-color: alpha(@dark_2, 0.8);
 }
