@@ -143,7 +143,7 @@ get_css_class_for_type(PwPadType type)
   case PW_PAD_TYPE_MIDI:
     return "midi";
   case PW_PAD_TYPE_MIDI_PASSTHROUGH:
-    return "midi_passthough";
+    return "midi_passthrough";
   case PW_PAD_TYPE_OTHER:
   default:
     return "other";
