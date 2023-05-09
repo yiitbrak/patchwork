@@ -291,8 +291,15 @@ pad_drop_cb (GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
     return FALSE;
   }
 
-  g_signal_emit (pad, signals[SIG_LINK_ADDED], 0, pw_pad_get_id (pad),
-                 pw_pad_get_id (received));
+  guint out, in;
+  if(pw_pad_get_direction(pad)==PW_PAD_DIRECTION_OUT){
+    out = pw_pad_get_id(pad);
+    in = pw_pad_get_id(received);
+  }else{
+    out = pw_pad_get_id(received);
+    in = pw_pad_get_id(pad);
+  }
+  g_signal_emit (pad, signals[SIG_LINK_ADDED], 0, out, in);
 
   return TRUE;
 }

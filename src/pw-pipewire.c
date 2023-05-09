@@ -170,6 +170,40 @@ pw_pipewire_add_node (GObject *self, PwCanvas *canv, PwNodeData nod)
 }
 
 static void
+link_added_cb(PwPad* self, guint out, guint in, gpointer user_data)
+{
+  PwPipewire *con = PW_PIPEWIRE (user_data);
+
+  PwPad* out_pad = pw_pipewire_get_pad_by_id(G_OBJECT(con), out);
+  PwPad* in_pad = pw_pipewire_get_pad_by_id(G_OBJECT(con), in);
+
+  guint out_node = pw_pad_get_parent_id(out_pad);
+  guint in_node = pw_pad_get_parent_id(in_pad);
+
+  char ids[4][20];
+  g_snprintf(ids[0], 20, "%u", out);
+  g_snprintf(ids[1], 20, "%u", out_node);
+  g_snprintf(ids[2], 20, "%u", in);
+  g_snprintf(ids[3], 20, "%u", in_node);
+
+  struct spa_dict props;
+  struct spa_dict_item items[6];
+  props = SPA_DICT_INIT(items, 0);
+  items[props.n_items++] = SPA_DICT_ITEM_INIT(PW_KEY_LINK_OUTPUT_PORT, ids[0]);
+  items[props.n_items++] = SPA_DICT_ITEM_INIT(PW_KEY_LINK_OUTPUT_NODE, ids[1]);
+  items[props.n_items++] = SPA_DICT_ITEM_INIT(PW_KEY_LINK_INPUT_PORT, ids[2]);
+  items[props.n_items++] = SPA_DICT_ITEM_INIT(PW_KEY_LINK_INPUT_NODE, ids[3]);
+  if(!g_strcmp0(g_getenv("PIPEWIRE_LINK_PASSIVE"), "true"))
+    items[props.n_items++] = SPA_DICT_ITEM_INIT(PW_KEY_LINK_PASSIVE, "true");
+
+  pw_thread_loop_lock(con->loop);
+  struct pw_proxy *proxy =
+    pw_core_create_object(con->core, "link-factory", PW_TYPE_INTERFACE_Link,
+                          PW_VERSION_LINK, &props, 0);
+  pw_thread_loop_unlock(con->loop);
+}
+
+static void
 pw_pipewire_add_pad (GObject *self, PwPadData data)
 {
   g_return_if_fail (PW_IS_PIPEWIRE (self));
@@ -180,7 +214,7 @@ pw_pipewire_add_pad (GObject *self, PwPadData data)
 
   PwPad *pad = pw_pad_new_with_name (data.id, data.direction, pw_node_get_media_type(nod), data.name);
 
-  // g_signal_connect(pad , "link-added" , G_CALLBACK(_link_added_cb), con);
+  g_signal_connect(pad , "link-added" , G_CALLBACK(link_added_cb), con);
 
   con->pads = g_list_prepend (con->pads, pad);
   pw_node_append_pad (nod, pad, data.direction);
