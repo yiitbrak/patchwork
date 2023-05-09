@@ -7,7 +7,7 @@
 typedef struct
 {
   gdouble scale;
-  gint dr_x, dr_y; // mouse ptr offsets in canvas units
+  gint dr_x, dr_y; // mouse ptr offsets in canvas units or link drag coordinates in screen units
   GtkWidget *dr_obj;
   GtkAdjustment* adj[2];
   GtkScrollablePolicy scroll_policy[2];
@@ -15,6 +15,7 @@ typedef struct
   GObject *controller;
   GtkDragSource *dr_src;
   GtkDropTarget *dr_tgt;
+  GtkEventController* dr_motion;
 } PwCanvasPrivate;
 
 G_DEFINE_TYPE_WITH_CODE (PwCanvas, pw_canvas, GTK_TYPE_WIDGET,
@@ -315,7 +316,8 @@ pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
   canvas_configure_adj(self, GTK_ORIENTATION_VERTICAL, bounds, height);
 
   GList *list = pw_view_controller_get_node_list(priv->controller);
-  while (list){
+  while (list)
+    {
       allocate_node (widget, GTK_WIDGET(list->data));
       list = list->next;
     }
@@ -373,9 +375,8 @@ snapshot_nodes (GtkWidget *widget, GtkSnapshot *snapshot)
 }
 
 static void
-draw_single_link(GtkWidget* widget, cairo_t* cr, PwLinkData* dat)
+draw_single_link(PwCanvas* canv, cairo_t* cr, PwLinkData* dat)
 {
-  PwCanvas* canv = PW_CANVAS(widget);
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
   AdwStyleManager *style = adw_style_manager_get_default ();
   gboolean is_dark = adw_style_manager_get_dark (style);
@@ -406,6 +407,48 @@ draw_single_link(GtkWidget* widget, cairo_t* cr, PwLinkData* dat)
 }
 
 static void
+draw_dragged_link(PwCanvas* canv, cairo_t* cr)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
+  PwPad* dr = PW_PAD(priv->dr_obj);
+  gboolean is_out = pw_pad_get_direction(dr) == PW_PAD_DIRECTION_OUT;
+  int voffset = gtk_adjustment_get_value(priv->adj[GTK_ORIENTATION_VERTICAL]);
+  int hoffset = gtk_adjustment_get_value(priv->adj[GTK_ORIENTATION_HORIZONTAL]);
+
+  graphene_rect_t rect;
+  gboolean res = gtk_widget_compute_bounds(GTK_WIDGET(dr), GTK_WIDGET(canv), &rect);
+
+  int x1, y1, x2, y2, mid1, mid2;
+
+  if(is_out)
+    {
+      x1 = rect.origin.x + rect.size.width;
+      y1 = rect.origin.y + rect.size.height/2;
+      x2 = priv->dr_x;
+      y2 = priv->dr_y;
+      mid1 = x1+abs(x2-x1)/2;
+      mid2 = x2+(x1<x2?-1:1)*abs(x2-x1)/2;
+    }
+  else
+    {
+      x1 = priv->dr_x;
+      y1 = priv->dr_y;
+      x2 = rect.origin.x;
+      y2 = rect.origin.y + rect.size.height/2;
+      mid1 = x1+(x1<x2?1:-1)*abs(x2-x1)/2;
+      mid2 = x2-abs(x2-x1)/2;
+    }
+
+  gint col = (1);
+  cairo_set_source_rgba(cr, col, col, col, 0.6);
+  cairo_set_line_width(cr, 2*priv->scale);
+
+  cairo_move_to(cr, x1, y1);
+  cairo_curve_to(cr, mid1, y1, mid2, y2, x2, y2);
+  cairo_stroke(cr);
+}
+
+static void
 snapshot_links (GtkWidget* widget, GtkSnapshot* snapshot)
 {
   PwCanvas* canv = PW_CANVAS(widget);
@@ -418,14 +461,16 @@ snapshot_links (GtkWidget* widget, GtkSnapshot* snapshot)
   // TODO: test out if single cairo node aproach is actually faster than spearate nodes
   cairo_t* cai =gtk_snapshot_append_cairo(snapshot, &canv_rect);
 
+
+  if(priv->dr_obj && PW_IS_PAD(priv->dr_obj))
+    {
+      draw_dragged_link(canv, cai);
+    }
+
   while(link)
     {
       PwLinkData* ldat = link->data;
-
-
-      draw_single_link(widget, cai, link->data);
-
-
+      draw_single_link(canv, cai, link->data);
       link=link->next;
     }
   cairo_destroy(cai);
@@ -516,10 +561,11 @@ drag_begin_cb (GtkDragSource *self, GdkDrag *drag, gpointer user_data)
   gtk_drag_source_set_icon (self, empty_icon, 0, 0);
   g_object_unref(empty_icon);
 
-  if (PW_IS_NODE (priv->dr_obj)){
-    PwNode* nod = PW_NODE(priv->dr_obj);
-    pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
-  }
+  if (PW_IS_NODE (priv->dr_obj))
+    {
+      PwNode* nod = PW_NODE(priv->dr_obj);
+      pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
+    }
 }
 
 static void
@@ -533,6 +579,11 @@ drag_end_cb (GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
     {
       gdk_drag_set_hotspot (drag, 0, 0);
       priv->dr_obj = NULL;
+    }
+  else if(PW_IS_PAD(priv->dr_obj))
+    {
+      priv->dr_obj = NULL;
+      gtk_widget_queue_draw(GTK_WIDGET(canv));
     }
 }
 
@@ -566,18 +617,25 @@ drop_cb (GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
   return TRUE;
 }
 
-static GdkDragAction
+static void
 motion_cb (GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
 
-  PwNode *nod = PW_NODE (priv->dr_obj);
 
-  pw_node_set_xpos (nod, (x / priv->scale) - priv->dr_x);
-  pw_node_set_ypos (nod, (y / priv->scale) - priv->dr_y);
-
-  return GDK_ACTION_MOVE;
+  if(PW_IS_NODE(priv->dr_obj))
+    {
+      PwNode *nod = PW_NODE (priv->dr_obj);
+      pw_node_set_xpos (nod, (x / priv->scale) - priv->dr_x);
+      pw_node_set_ypos (nod, (y / priv->scale) - priv->dr_y);
+    }
+  else if(PW_IS_PAD(priv->dr_obj))
+    {
+      priv->dr_x = x;
+      priv->dr_y = y;
+      gtk_widget_queue_draw(GTK_WIDGET(canv));
+    }
 }
 
 static void
@@ -608,8 +666,11 @@ pw_canvas_init (PwCanvas *self)
 
   priv->dr_tgt = gtk_drop_target_new (PW_TYPE_NODE, GDK_ACTION_MOVE);
   g_signal_connect (priv->dr_tgt, "drop", G_CALLBACK (drop_cb), self);
-  g_signal_connect (priv->dr_tgt, "motion", G_CALLBACK (motion_cb), self);
   gtk_widget_add_controller (widget, GTK_EVENT_CONTROLLER (priv->dr_tgt));
+
+  priv->dr_motion = gtk_drop_controller_motion_new();
+  g_signal_connect (priv->dr_motion, "motion", G_CALLBACK (motion_cb), self);
+  gtk_widget_add_controller (widget, priv->dr_motion);
 
   g_signal_connect(con, "changed", G_CALLBACK(changed_cb), self);
 

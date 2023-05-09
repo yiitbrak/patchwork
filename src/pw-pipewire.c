@@ -554,11 +554,23 @@ reg_fill_link (Message *msg, guint32 id, const struct spa_dict *props)
 }
 
 static void
+print_obj(guint32 id, const char *type, const struct spa_dict *props)
+{
+  const struct spa_dict_item* it;
+  printf("ID: %u\nType: %s\n", id, type);
+  spa_dict_for_each(it, props)
+    printf("%s: %s\n",it->key, it->value);
+  printf("--------------------------------------------\n");
+}
+
+static void
 reg_event_global (void *data, guint32 id, guint32 permissions, const char *type, guint32 version, const struct spa_dict *props)
 {
   PwPipewire *self = PW_PIPEWIRE (data);
   Message *msg = malloc (sizeof (Message));
   msg->type = reg_get_type (type);
+
+  // print_obj(id, type, props);
 
   switch (msg->type)
     {
