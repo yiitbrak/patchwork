@@ -1,7 +1,7 @@
 pad {
 padding: 5px 0px;
 border: 0px;
-color: white;
+color: @pad_fg_color;
 transition: outline-color 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), outline-width 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), outline-offset 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94), background 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -35,61 +35,61 @@ border-right-width: 0px;
 }
 
 pad.audio {
-background-color: @blue_3;
+background-color: @pad_audio_bg_color;
 }
 
 pad.audio:hover {
-background-color: alpha(@blue_3, 0.95);
+background-color: alpha(@pad_audio_bg_color, 0.95);
 }
 
 pad.audio:active {
-background-color: alpha(@blue_3, 0.8);
+background-color: alpha(@pad_audio_bg_color, 0.8);
 }
 
 pad.midi_passthrough {
-background-color: @green_3;
+background-color: @pad_midi_passthrough_bg_color;
 }
 
 pad.midi_passthrough:hover {
-background-color: alpha(@green_3, 0.95);
+background-color: alpha(@pad_midi_passthrough_bg_color, 0.95);
 }
 
 pad.midi_passthrough:active {
-background-color: alpha(@green_3, 0.8);
+background-color: alpha(@pad_midi_passthrough_bg_color, 0.8);
 }
 
 pad.video {
-background-color: @red_3;
+background-color: @pad_video_bg_color;
 }
 
 pad.video:hover {
-background-color: alpha(@red_3, 0.95);
+background-color: alpha(@pad_video_bg_color, 0.95);
 }
 
 pad.video:active {
-background-color: alpha(@red_3, 0.8);
+background-color: alpha(@pad_video_bg_color, 0.8);
 }
 
 pad.midi {
-background-color: @purple_3;
+background-color: @pad_midi_bg_color;
 }
 
 pad.midi:hover {
-background-color: alpha(@purple_3, 0.95);
+background-color: alpha(@pad_midi_bg_color, 0.95);
 }
 
 pad.midi:active {
-background-color: alpha(@purple_3, 0.8);
+background-color: alpha(@pad_midi_bg_color, 0.8);
 }
 
 pad.other {
-background-color: @dark_2;
+background-color: @pad_other_bg_color;
 }
 
 pad.other:hover {
-background-color: alpha(@dark_2, 0.95);
+background-color: alpha(@pad_other_bg_color, 0.95);
 }
 
 pad.other:active {
-background-color: alpha(@dark_2, 0.8);
+background-color: alpha(@pad_other_bg_color, 0.8);
 }

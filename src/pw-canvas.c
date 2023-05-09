@@ -639,7 +639,7 @@ motion_cb (GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
 }
 
 static void
-changed_cb (GObject *object, gpointer user_data)
+pipewire_changed_cb (GObject *object, gpointer user_data)
 {
   PwCanvas* self = PW_CANVAS(user_data);
   gtk_widget_queue_allocate(GTK_WIDGET(self));
@@ -672,7 +672,7 @@ pw_canvas_init (PwCanvas *self)
   g_signal_connect (priv->dr_motion, "motion", G_CALLBACK (motion_cb), self);
   gtk_widget_add_controller (widget, priv->dr_motion);
 
-  g_signal_connect(con, "changed", G_CALLBACK(changed_cb), self);
+  g_signal_connect(con, "changed", G_CALLBACK(pipewire_changed_cb), self);
 
   gtk_widget_set_overflow(widget, GTK_OVERFLOW_HIDDEN);
 

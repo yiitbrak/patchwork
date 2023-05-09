@@ -3,6 +3,8 @@
   <gresource prefix="/org/nidi/patchwork">
     <file preprocess="xml-stripblanks">res/ui/pw-window.ui</file>
     <file preprocess="xml-stripblanks">res/ui/pw-node.ui</file>
+    <file>res/css/colors-dark.css</file>
+    <file>res/css/colors-light.css</file>
     <file>res/css/pw-node.css</file>
     <file>res/css/pw-pad.css</file>
     <file>res/css/pw-canvas.css</file>

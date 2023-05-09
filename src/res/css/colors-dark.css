@@ -1,0 +1,7 @@
+@define-color node_bg_color #383838;
+@define-color pad_fg_color @white_1;
+@define-color pad_audio_bg_color @blue_4;
+@define-color pad_midi_bg_color @green_5;
+@define-color pad_video_bg_color @red_3;
+@define-color pad_midi_passthrough_bg_color @purple_3;
+@define-color pad_other_bg_color @dark_2;

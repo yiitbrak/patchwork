@@ -27,6 +27,8 @@ struct _PwWindow
 {
   AdwApplicationWindow parent_instance;
 
+  GtkCssProvider *prov;
+
   /* Template widgets */
   GtkHeaderBar *header_bar;
   PwCanvas *main_vp;
@@ -35,9 +37,24 @@ struct _PwWindow
 G_DEFINE_FINAL_TYPE (PwWindow, pw_window, ADW_TYPE_APPLICATION_WINDOW)
 
 static void
+pw_window_dispose(GObject* object)
+{
+  PwWindow* self = PW_WINDOW(object);
+
+  gtk_widget_dispose_template(GTK_WIDGET(self), PW_TYPE_WINDOW);
+  g_clear_object(&self->prov);
+
+  G_OBJECT_CLASS(pw_window_parent_class)->dispose(object);
+}
+
+static void
 pw_window_class_init (PwWindowClass *klass)
 {
+  GObjectClass *object_class = G_OBJECT_CLASS(klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+
+  object_class->dispose = pw_window_dispose;
+
 
   gtk_widget_class_set_template_from_resource (
       widget_class, "/org/nidi/patchwork/res/ui/pw-window.ui");
@@ -46,17 +63,36 @@ pw_window_class_init (PwWindowClass *klass)
 }
 
 static void
+theme_notify_cb (AdwStyleManager* man, GParamSpec* pspec, PwWindow* self)
+{
+  gboolean is_dark = adw_style_manager_get_dark(man);
+  GdkDisplay *disp = gtk_widget_get_display (GTK_WIDGET (self));
+
+  if(is_dark){
+    gtk_css_provider_load_from_resource(self->prov, "/org/nidi/patchwork/res/css/colors-dark.css");
+  } else {
+    gtk_css_provider_load_from_resource(self->prov, "/org/nidi/patchwork/res/css/colors-light.css");
+  }
+}
+
+static void
 pw_window_init (PwWindow *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  GtkCssProvider *prov = gtk_css_provider_new ();
-
-  gtk_css_provider_load_from_resource (prov,
-                                       "/org/nidi/patchwork/res/css/main.css");
-
   GdkDisplay *disp = gtk_widget_get_display (GTK_WIDGET (self));
-  gtk_style_context_add_provider_for_display (
-      disp, GTK_STYLE_PROVIDER (prov),
-      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  self->prov = gtk_css_provider_new();
+
+  AdwStyleManager *man =  adw_style_manager_get_default ();
+  g_signal_connect(man, "notify::dark", G_CALLBACK(theme_notify_cb), self);
+  theme_notify_cb(man, NULL, self);
+
+  gtk_style_context_add_provider_for_display(disp, GTK_STYLE_PROVIDER(self->prov),
+                                             GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+  GtkCssProvider* main_css = gtk_css_provider_new();
+  gtk_css_provider_load_from_resource(main_css, "/org/nidi/patchwork/res/css/main.css");
+
+  gtk_style_context_add_provider_for_display(disp, GTK_STYLE_PROVIDER(main_css),
+                                             GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 }
