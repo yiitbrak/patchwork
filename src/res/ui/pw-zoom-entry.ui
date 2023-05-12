@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="PwZoomEntry" parent="GtkWidget">
+    <child>
+      <object class="GtkBox" id="hbox">
+        <property name="orientation">GTK_ORIENTATION_HORIZONTAL</property>
+        <style>
+          <class name="linked"/>
+        </style>
+        <child>
+          <object class="GtkButton" id="dec_but">
+            <property name="icon-name">zoom-out-symbolic</property>
+            <property name="action-name">zoom_entry.increase-value</property>
+            <property name="action-target">-10.0</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkEntry" id="entry">
+            <signal name="icon-press" handler="pw_zoom_entry_icon_press" object="PwZoomEntry" swapped="yes"/>
+            <signal name="activate" handler="pw_zoom_entry_activate" object="PwZoomEntry"/>
+            <property name="input-hints">GTK_INPUT_HINT_NO_SPELLCHECK</property>
+            <property name="input-purpose">GTK_INPUT_PURPOSE_FREE_FORM</property>
+            <property name="width-chars">4</property>
+            <property name="max-width-chars">5</property>
+            <property name="xalign">0.0</property>
+            <property name="secondary-icon-name">pan-down-symbolic</property>
+            <property name="secondary-icon-activatable">TRUE</property>
+            <child>
+              <object class="GtkPopoverMenu" id="popover">
+                <property name="menu-model">zoom_levels</property>
+                <property name="has-arrow">FALSE</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="inc_but">
+            <property name="icon-name">zoom-in-symbolic</property>
+            <property name="action-name">zoom_entry.increase-value</property>
+            <property name="action-target">+10.0</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+  <menu id="zoom_levels">
+    <section>
+      <item>
+        <attribute name="label">25%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">25</attribute>
+      </item>
+      <item>
+        <attribute name="label">50%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">50</attribute>
+      </item>
+      <item>
+        <attribute name="label">75%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">75</attribute>
+      </item>
+      <item>
+        <attribute name="label">100%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">100</attribute>
+      </item>
+      <item>
+        <attribute name="label">125%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">125</attribute>
+      </item>
+      <item>
+        <attribute name="label">150%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">150</attribute>
+      </item>
+      <item>
+        <attribute name="label">175%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">175</attribute>
+      </item>
+      <item>
+        <attribute name="label">200%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">200</attribute>
+      </item>
+      <item>
+        <attribute name="label">500%</attribute>
+        <attribute name="action">zoom_entry.set-value</attribute>
+        <attribute name="target" type="d">500</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>
+

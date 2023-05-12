@@ -8,6 +8,7 @@ pw_sources = [
   'pw-pad.c',
   'pw-dummy.c',
   'pw-pipewire.c',
+  'pw-zoom-entry.c',
 ]
 
 pw_deps = [

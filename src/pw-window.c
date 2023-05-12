@@ -22,6 +22,7 @@
 
 #include "pw-canvas.h"
 #include "pw-window.h"
+#include "pw-zoom-entry.h"
 
 struct _PwWindow
 {
@@ -32,6 +33,7 @@ struct _PwWindow
   /* Template widgets */
   GtkHeaderBar *header_bar;
   PwCanvas *main_vp;
+  PwZoomEntry *zoom_entry;
 };
 
 G_DEFINE_FINAL_TYPE (PwWindow, pw_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -60,6 +62,7 @@ pw_window_class_init (PwWindowClass *klass)
       widget_class, "/org/nidi/patchwork/res/ui/pw-window.ui");
   gtk_widget_class_bind_template_child (widget_class, PwWindow, header_bar);
   gtk_widget_class_bind_template_child (widget_class, PwWindow, main_vp);
+  gtk_widget_class_bind_template_child (widget_class, PwWindow, zoom_entry);
 }
 
 static void
@@ -78,6 +81,7 @@ theme_notify_cb (AdwStyleManager* man, GParamSpec* pspec, PwWindow* self)
 static void
 pw_window_init (PwWindow *self)
 {
+  GtkWidget* widget = GTK_WIDGET(self);
   gtk_widget_init_template (GTK_WIDGET (self));
 
   GdkDisplay *disp = gtk_widget_get_display (GTK_WIDGET (self));

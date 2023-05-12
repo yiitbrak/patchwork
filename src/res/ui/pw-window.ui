@@ -2,6 +2,14 @@
 <interface>
   <requires lib="gtk" version="4.0" />
   <requires lib="Adw" version="1.0" />
+  <object class="GtkAdjustment" id="zoom_adjustment">
+    <property name="upper">500</property>
+    <property name="lower">10</property>
+    <property name="value">100</property>
+    <property name="step-increment">10</property>
+    <property name="page-increment">0</property>
+    <property name="page-size">100</property>
+  </object>
   <template class="PwWindow" parent="AdwApplicationWindow">
     <property name="default-width">600</property>
     <property name="default-height">300</property>
@@ -10,22 +18,19 @@
         <property name="orientation">vertical</property>
         <child>
           <object class="GtkHeaderBar" id="header_bar">
-            <child type="start">
-              <object class="GtkScale" id="zoom_scale">
-                <property name="adjustment">
-                  <object class="GtkAdjustment" id="zoom_adj">
-                    <property name="lower">0.125</property>
-                    <property name="upper">5.0</property>
-                    <property name="step-increment">0.125</property>
-                    <property name="value">1.0</property>
-                  </object>
-                </property>
-              </object>
-            </child>
             <child type="end">
-              <object class="GtkMenuButton">
-                <property name="icon-name">open-menu-symbolic</property>
-                <property name="menu-model">primary_menu</property>
+              <object class="GtkBox">
+                <child>
+                  <object class="PwZoomEntry" id="zoom_entry">
+                    <property name="adjustment">zoom_adjustment</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkMenuButton">
+                    <property name="icon-name">open-menu-symbolic</property>
+                    <property name="menu-model">primary_menu</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
