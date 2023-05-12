@@ -1,9 +1,6 @@
 #include "pw-zoom-entry.h"
 #include <locale.h>
 
-#define MIN_VAL 0.1
-#define MAX_VAL 5.0
-
 struct _PwZoomEntry
 {
   GtkWidget parent_instance;
@@ -153,7 +150,6 @@ pw_zoom_entry_get_property (GObject *object,
   switch (prop_id)
     {
     case PROP_ADJUSTMENT:
-      gtk_adjustment_set_value(self->adj, 31);
       g_value_set_object (value, G_OBJECT(self->adj));
       break;
     default:
@@ -164,14 +160,14 @@ pw_zoom_entry_get_property (GObject *object,
 static void
 update_value_string(PwZoomEntry *self)
 {
-  static char string[6];
+  static char string[16];
   struct lconv *local = localeconv();
   GtkEntryBuffer *entry_buffer = gtk_entry_get_buffer (self->entry);
 
   gdouble value = gtk_adjustment_get_value(self->adj);
 
-  g_snprintf (string, 6, "%.1f%%",  value);
-  uint length = g_utf8_strlen (string, 6);
+  g_snprintf (string, 16, "%.1f%%",  value);
+  uint length = g_utf8_strlen (string, 16);
   gtk_entry_buffer_set_text (entry_buffer, string, length);
 }
 
@@ -192,6 +188,11 @@ zoom_entry_set_adjustment (PwZoomEntry *self, GtkAdjustment *adjustment)
   g_object_ref_sink(self->adj);
 
   g_signal_connect_swapped(self->adj, "value-changed", G_CALLBACK(update_value_string), self);
+  gtk_actionable_set_action_target(GTK_ACTIONABLE(self->inc_but), "d",
+                                   gtk_adjustment_get_step_increment(self->adj));
+  gtk_actionable_set_action_target(GTK_ACTIONABLE(self->dec_but), "d",
+                                   -gtk_adjustment_get_step_increment(self->adj));
+
   update_value_string(self);
 }
 
@@ -334,7 +335,7 @@ read_value(const char* string, gdouble *value)
 
   if(tval != 0){
     result = TRUE;
-    *value = tval/100;
+    *value = tval;
   }
 
   return result;
