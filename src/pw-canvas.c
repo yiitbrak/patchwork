@@ -265,18 +265,19 @@ static graphene_rect_t
 canvas_get_node_bounds (PwCanvas* self)
 {
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+  GtkWidget *widget = GTK_WIDGET(self);
   gfloat xmin=G_MAXFLOAT,ymin=G_MAXFLOAT,xmax=G_MINFLOAT,ymax=G_MINFLOAT;
 
-  GtkWidget* child = gtk_widget_get_first_child(GTK_WIDGET(self));
+  GtkWidget* child = gtk_widget_get_first_child(widget);
   while(child){
     PwNode* nod = PW_NODE(child);
-    GtkAllocation al;
-    gtk_widget_get_allocation(child, &al);
+    graphene_rect_t rect;
+    gboolean success = gtk_widget_compute_bounds(child, widget, &rect);
 
-    xmin = MIN(xmin,al.x);
-    ymin = MIN(ymin,al.y);
-    xmax = MAX(xmax, al.x+al.width);
-    ymax = MAX(ymax, al.y+al.height);
+    xmin = MIN(xmin,rect.origin.x);
+    ymin = MIN(ymin,rect.origin.y);
+    xmax = MAX(xmax, rect.origin.x+rect.size.width);
+    ymax = MAX(ymax, rect.origin.y+rect.size.height);
 
     child = gtk_widget_get_next_sibling(child);
   }
@@ -332,10 +333,10 @@ snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
   AdwStyleManager *style = adw_style_manager_get_default ();
   gboolean is_dark = adw_style_manager_get_dark (style);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (PW_CANVAS (widget));
-  GtkAllocation alt;
-  gtk_widget_get_allocation (widget, &alt);
+  graphene_rect_t al;
+  gboolean success = gtk_widget_compute_bounds(widget, widget, &al);
   graphene_rect_t alloc
-      = { .origin = { 0, 0 }, .size = { alt.width, alt.height } };
+      = { .origin = { 0, 0 }, .size = { al.size.width, al.size.height } };
   graphene_rect_t grid_cell;
 
   gtk_snapshot_push_repeat (snapshot, &alloc, NULL);
@@ -457,11 +458,11 @@ snapshot_links (GtkWidget* widget, GtkSnapshot* snapshot)
   PwCanvas* canv = PW_CANVAS(widget);
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
   GList* link = pw_view_controller_get_link_list(priv->controller);
-  GtkAllocation al;
-  gtk_widget_get_allocation(widget, &al);
-  graphene_rect_t canv_rect = GRAPHENE_RECT_INIT(0, 0, al.width, al.height);
+  graphene_rect_t al;
+  gboolean success = gtk_widget_compute_bounds(widget, widget, &al);
+  graphene_rect_t canv_rect = GRAPHENE_RECT_INIT(0, 0, al.size.width, al.size.height);
 
-  // TODO: test out if single cairo node aproach is actually faster than spearate nodes
+  // TODO: test out if single cairo node approach is actually faster than spearate nodes
   cairo_t* cai =gtk_snapshot_append_cairo(snapshot, &canv_rect);
 
 
