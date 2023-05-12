@@ -16,7 +16,6 @@ struct _PwPipewire
   struct spa_hook reg_listener;
 
   gint idle_id;
-  GAsyncQueue *pw_send; // from perspective of gtk thread
   GAsyncQueue *pw_recv;
 
   GList *nodes, *pads, *links;
@@ -161,7 +160,7 @@ pw_pipewire_add_node (GObject *self, PwCanvas *canv, PwNodeData nod)
   PwNode *nnod = pw_node_new (nod.id);
   pw_node_set_xpos (nnod, cord);
   pw_node_set_ypos (nnod, cord);
-  g_object_set (G_OBJECT (nnod), "title", nod.title, "type", nod.type ,NULL);
+  g_object_set (G_OBJECT (nnod), "title", nod.title, "type", nod.type, NULL);
 
   con->nodes = g_list_prepend (con->nodes, nnod);
   gtk_widget_set_parent (GTK_WIDGET (nnod), GTK_WIDGET (canv));
@@ -214,7 +213,7 @@ pw_pipewire_add_pad (GObject *self, PwPadData data)
 
   PwPad *pad = pw_pad_new_with_name (data.id, data.direction, pw_node_get_media_type(nod), data.name);
 
-  g_signal_connect(pad , "link-added" , G_CALLBACK(link_added_cb), con);
+  g_signal_connect (pad, "link-added", G_CALLBACK (link_added_cb), con);
 
   con->pads = g_list_prepend (con->pads, pad);
   pw_node_append_pad (nod, pad, data.direction);
@@ -273,8 +272,8 @@ static PwNode *
 pw_pipewire_get_node_by_id (GObject *this, gint id)
 {
   g_return_val_if_fail (PW_IS_PIPEWIRE (this), NULL);
-  PwPipewire *dum = PW_PIPEWIRE (this);
-  GList *l = dum->nodes;
+  PwPipewire *pw = PW_PIPEWIRE (this);
+  GList *l = pw->nodes;
 
   while (l)
     {
@@ -290,8 +289,8 @@ static PwPad *
 pw_pipewire_get_pad_by_id (GObject *this, gint id)
 {
   g_return_val_if_fail (PW_IS_PIPEWIRE (this), NULL);
-  PwPipewire *dum = PW_PIPEWIRE (this);
-  GList *l = dum->pads;
+  PwPipewire *pw = PW_PIPEWIRE (this);
+  GList *l = pw->pads;
 
   while (l)
     {
@@ -307,8 +306,8 @@ static PwLinkData *
 pw_pipewire_get_link_by_id (GObject *this, gint id)
 {
   g_return_val_if_fail (PW_IS_PIPEWIRE (this), NULL);
-  PwPipewire *dum = PW_PIPEWIRE (this);
-  GList *l = dum->links;
+  PwPipewire *pw = PW_PIPEWIRE (this);
+  GList *l = pw->links;
 
   while (l)
     {
@@ -324,31 +323,31 @@ static void
 pw_pipewire_node_to_front (GObject *this, gint id)
 {
   g_return_if_fail (PW_IS_PIPEWIRE (this));
-  PwPipewire *dum = PW_PIPEWIRE (this);
+  PwPipewire *pw = PW_PIPEWIRE (this);
 
-  PwNode *n = pw_pipewire_get_node_by_id (G_OBJECT (dum), id);
+  PwNode *n = pw_pipewire_get_node_by_id (G_OBJECT (pw), id);
 
-  GList *elem = g_list_find (dum->nodes, n);
-  dum->nodes = g_list_remove_link (dum->nodes, elem);
+  GList *elem = g_list_find (pw->nodes, n);
+  pw->nodes = g_list_remove_link (pw->nodes, elem);
 
   // NULL because of last to snapshot is one in front
-  dum->nodes = g_list_insert_before_link (dum->nodes, NULL, elem);
+  pw->nodes = g_list_insert_before_link (pw->nodes, NULL, elem);
 }
 
 static GList *
 pw_pipewire_get_node_list (GObject *this)
 {
   g_return_val_if_fail (PW_IS_PIPEWIRE (this), NULL);
-  PwPipewire *dum = PW_PIPEWIRE (this);
-  return dum->nodes;
+  PwPipewire *pw = PW_PIPEWIRE (this);
+  return pw->nodes;
 }
 
 static GList *
 pw_pipewire_get_link_list (GObject *this)
 {
   g_return_val_if_fail (PW_IS_PIPEWIRE (this), NULL);
-  PwPipewire *dum = PW_PIPEWIRE (this);
-  return dum->links;
+  PwPipewire *pw = PW_PIPEWIRE (this);
+  return pw->links;
 }
 
 static void
@@ -429,7 +428,6 @@ static void
 pw_pipewire_init (PwPipewire *self)
 {
   self->idle_id = 0;
-  self->pw_send = g_async_queue_new_full (free);
   self->pw_recv = g_async_queue_new_full (pw_free_recv_queue);
   spa_zero (self->reg_listener);
 
@@ -501,7 +499,7 @@ reg_fill_node (Message *msg, guint32 id, const struct spa_dict *props)
 }
 
 static void
-reg_fill_port (PwPipewire* self, Message *msg, guint32 id, const struct spa_dict *props)
+reg_fill_port (PwPipewire *self, Message *msg, guint32 id, const struct spa_dict *props)
 {
   PwPadData *dat = malloc (sizeof (PwPadData));
   const char *str;
@@ -553,6 +551,7 @@ reg_fill_link (Message *msg, guint32 id, const struct spa_dict *props)
   msg->data = dat;
 }
 
+G_GNUC_UNUSED
 static void
 print_obj(guint32 id, const char *type, const struct spa_dict *props)
 {
