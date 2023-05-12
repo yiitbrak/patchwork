@@ -4,6 +4,9 @@
 #include "pw-node.h"
 #include "pw-view-controller.h"
 
+#define MAX_ZOOM 5.0
+#define MIN_ZOOM 0.10
+
 typedef struct
 {
   gdouble scale;
@@ -179,7 +182,7 @@ static void
 set_zoom(PwCanvas* self, gdouble zoom)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
-  priv->scale = zoom;
+  priv->scale = MAX(MIN_ZOOM,MIN(MAX_ZOOM,zoom));
   gtk_widget_queue_allocate (GTK_WIDGET (self));
 }
 
@@ -507,8 +510,8 @@ pw_canvas_class_init (PwCanvasClass *klass)
   properties[PROP_VSCROLL_POLICY] = g_param_spec_override ("vscroll-policy", g_object_interface_find_property (iface, "vscroll-policy"));
 
   properties[PROP_ZOOM]
-      = g_param_spec_double ("zoom", "Zoom", "Zoom/scale of teh canvas", 0.1,
-                             5.0, 1, G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+      = g_param_spec_double ("zoom", "Zoom", "Zoom/scale of the canvas", MIN_ZOOM,
+                             MAX_ZOOM, 1, G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
   properties[PROP_CONTROLLER] = g_param_spec_object (
       "controller", "Controller", "Driver of the canvas", G_TYPE_OBJECT,
       G_PARAM_READWRITE);
