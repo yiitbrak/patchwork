@@ -15,4 +15,8 @@ struct _PwCanvasClass
 
 PwCanvas *pw_canvas_new (void);
 
+gdouble pw_canvas_get_zoom (PwCanvas *self);
+
+void pw_canvas_set_zoom (PwCanvas *self, gdouble zoom);
+
 G_END_DECLS

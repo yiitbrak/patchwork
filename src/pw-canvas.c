@@ -9,13 +9,13 @@ typedef struct
   gdouble scale;
   gint dr_x, dr_y; // mouse ptr offsets in canvas units or link drag coordinates in screen units
   GtkWidget *dr_obj;
-  GtkAdjustment* adj[2];
+  GtkAdjustment *adj[2];
   GtkScrollablePolicy scroll_policy[2];
 
   GObject *controller;
   GtkDragSource *dr_src;
   GtkDropTarget *dr_tgt;
-  GtkEventController* dr_motion;
+  GtkEventController *dr_motion;
 } PwCanvasPrivate;
 
 G_DEFINE_TYPE_WITH_CODE (PwCanvas, pw_canvas, GTK_TYPE_WIDGET,
@@ -678,3 +678,17 @@ pw_canvas_init (PwCanvas *self)
 
   pw_pipewire_run(con);
 }
+
+gdouble
+pw_canvas_get_zoom (PwCanvas *self)
+{
+  PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
+  return priv->scale;
+}
+
+void
+pw_canvas_set_zoom (PwCanvas *self, gdouble zoom)
+{
+  g_object_set (self, "zoom", zoom, NULL);
+}
+
