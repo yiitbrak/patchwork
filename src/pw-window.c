@@ -50,6 +50,12 @@ pw_window_dispose(GObject* object)
 }
 
 static void
+pw_window_zoom_value_changed(PwWindow *self, GtkAdjustment *adj)
+{
+  pw_canvas_set_zoom(self->main_vp, gtk_adjustment_get_value(adj)/100);
+}
+
+static void
 pw_window_class_init (PwWindowClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS(klass);
@@ -63,6 +69,7 @@ pw_window_class_init (PwWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, PwWindow, header_bar);
   gtk_widget_class_bind_template_child (widget_class, PwWindow, main_vp);
   gtk_widget_class_bind_template_child (widget_class, PwWindow, zoom_entry);
+  gtk_widget_class_bind_template_callback(widget_class, pw_window_zoom_value_changed);
 }
 
 static void
