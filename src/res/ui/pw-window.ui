@@ -9,7 +9,7 @@
     <property name="value">100</property>
     <property name="step-increment">10</property>
     <property name="page-increment">0</property>
-    <property name="page-size">100</property>
+    <property name="page-size">0</property>
   </object>
   <template class="PwWindow" parent="AdwApplicationWindow">
     <property name="default-width">600</property>
@@ -40,6 +40,7 @@
           <object class="GtkScrolledWindow" id="sw">
             <child>
               <object class="PwCanvas" id="main_vp">
+                <signal name="notify::zoom" handler="pw_window_update_zoom_entry" swapped="yes"/>
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
               </object>
@@ -66,3 +67,4 @@
     </section>
   </menu>
 </interface>
+

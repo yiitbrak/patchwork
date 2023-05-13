@@ -14,11 +14,13 @@ typedef struct
   GtkWidget *dr_obj;
   GtkAdjustment *adj[2];
   GtkScrollablePolicy scroll_policy[2];
+  gdouble zoom_gest_prev_scale;
 
   GObject *controller;
   GtkDragSource *dr_src;
   GtkDropTarget *dr_tgt;
   GtkEventController *dr_motion;
+  GtkGesture *gest_zoom;
 } PwCanvasPrivate;
 
 G_DEFINE_TYPE_WITH_CODE (PwCanvas, pw_canvas, GTK_TYPE_WIDGET,
@@ -643,6 +645,26 @@ motion_cb (GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
 }
 
 static void
+pipwewire_zgesture_begin(PwCanvas         *self,
+                         GdkEventSequence *sequence,
+                         GtkGesture       *gest)
+{
+  PwCanvasPrivate *priv = pw_canvas_get_instance_private(self);
+  priv->zoom_gest_prev_scale = 1.0;
+}
+
+static void
+pipwewire_zgesture_scale_change(PwCanvas       *self,
+                                gdouble         scale,
+                                GtkGestureZoom *gest)
+{
+  PwCanvasPrivate *priv = pw_canvas_get_instance_private(self);
+  gdouble delta = priv->zoom_gest_prev_scale - scale;
+  pw_canvas_set_zoom(self, pw_canvas_get_zoom(self) - delta);
+  priv->zoom_gest_prev_scale = scale;
+}
+
+static void
 pipewire_changed_cb (GObject *object, gpointer user_data)
 {
   PwCanvas* self = PW_CANVAS(user_data);
@@ -675,6 +697,11 @@ pw_canvas_init (PwCanvas *self)
   priv->dr_motion = gtk_drop_controller_motion_new();
   g_signal_connect (priv->dr_motion, "motion", G_CALLBACK (motion_cb), self);
   gtk_widget_add_controller (widget, priv->dr_motion);
+
+  priv->gest_zoom = gtk_gesture_zoom_new();
+  g_signal_connect_swapped(priv->gest_zoom, "begin", G_CALLBACK(pipwewire_zgesture_begin), self);
+  g_signal_connect_swapped(priv->gest_zoom, "scale-changed", G_CALLBACK(pipwewire_zgesture_scale_change), self);
+  gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(priv->gest_zoom));
 
   g_signal_connect(con, "changed", G_CALLBACK(pipewire_changed_cb), self);
 

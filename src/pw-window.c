@@ -56,6 +56,15 @@ pw_window_zoom_value_changed(PwWindow *self, GtkAdjustment *adj)
 }
 
 static void
+pw_window_update_zoom_entry(PwWindow   *self,
+                            GParamSpec *spec,
+                            PwCanvas   *canv)
+{
+  GtkAdjustment *adj = pw_zoom_entry_get_adjustment(self->zoom_entry);
+  gtk_adjustment_set_value(adj, pw_canvas_get_zoom(canv)*100);
+}
+
+static void
 pw_window_class_init (PwWindowClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS(klass);
@@ -70,6 +79,7 @@ pw_window_class_init (PwWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, PwWindow, main_vp);
   gtk_widget_class_bind_template_child (widget_class, PwWindow, zoom_entry);
   gtk_widget_class_bind_template_callback(widget_class, pw_window_zoom_value_changed);
+  gtk_widget_class_bind_template_callback(widget_class, pw_window_update_zoom_entry);
 }
 
 static void
