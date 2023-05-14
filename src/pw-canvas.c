@@ -6,6 +6,7 @@
 
 #define MAX_ZOOM 5.0
 #define MIN_ZOOM 0.10
+#define CANV_EXTRA 100
 
 typedef struct
 {
@@ -324,24 +325,38 @@ canvas_get_node_bounds (PwCanvas* self)
 }
 
 static void
-canvas_configure_adj(PwCanvas* self, GtkOrientation or,graphene_rect_t bounds, int length)
+canvas_configure_adj(PwCanvas        *self,
+                     GtkOrientation   or,
+                     graphene_rect_t  bounds,
+                     int              length,
+                     uint             extra_alloc)
 {
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
   GtkAdjustment* adj = (or==GTK_ORIENTATION_VERTICAL)?priv->adj[GTK_ORIENTATION_VERTICAL]:priv->adj[GTK_ORIENTATION_HORIZONTAL];
   if(!adj)
     return;
-  gdouble value, lower, upper, step_inc, page_inc, page_size;
+
+  gdouble old_lower = gtk_adjustment_get_lower(adj);
+  gdouble old_upper = gtk_adjustment_get_upper(adj);
   gdouble old_value = gtk_adjustment_get_value(adj);
 
+  gdouble value, lower, upper, step_inc, page_inc, page_size;
+
   value = old_value;
-
-  lower = 0;//(or==GTK_ORIENTATION_VERTICAL)?bounds.origin.y:bounds.origin.x;
-  upper = 10000;//(or==GTK_ORIENTATION_VERTICAL)?bounds.size.height:bounds.size.width;
-  step_inc = 0;
+  page_size = length/priv->scale;
+  step_inc = 10;
   page_inc = 0;
-  page_size = length;
+  lower = (or==GTK_ORIENTATION_VERTICAL)?bounds.origin.y:bounds.origin.x;
+  upper = (or==GTK_ORIENTATION_VERTICAL)?bounds.size.height:bounds.size.width;
 
-
+  if(priv->dr_obj){
+    // do not shrink if there's an ongoing DnD
+    lower = MIN(old_lower,lower-extra_alloc);
+    upper = MAX(old_upper,upper+extra_alloc);
+  }else{
+    lower = MIN(value,lower-extra_alloc);
+    upper = MAX(value+page_size,upper+extra_alloc);
+  }
   gtk_adjustment_configure(adj, value, lower, upper, step_inc, page_inc, page_size);
 }
 
@@ -353,8 +368,8 @@ pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
 
   graphene_rect_t bounds = canvas_get_node_bounds(self);
-  canvas_configure_adj(self, GTK_ORIENTATION_HORIZONTAL, bounds, width);
-  canvas_configure_adj(self, GTK_ORIENTATION_VERTICAL, bounds, height);
+  canvas_configure_adj(self, GTK_ORIENTATION_HORIZONTAL, bounds, width, CANV_EXTRA);
+  canvas_configure_adj(self, GTK_ORIENTATION_VERTICAL, bounds, height, CANV_EXTRA);
 
   GList *list = pw_view_controller_get_node_list(priv->controller);
   while (list)
