@@ -21,6 +21,7 @@
             <property name="input-hints">GTK_INPUT_HINT_NO_SPELLCHECK</property>
             <property name="input-purpose">GTK_INPUT_PURPOSE_FREE_FORM</property>
             <property name="xalign">1.0</property>
+            <property name="max-width-chars">7</property>
             <property name="secondary-icon-name">pan-down-symbolic</property>
             <property name="secondary-icon-activatable">TRUE</property>
             <child>
