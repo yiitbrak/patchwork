@@ -437,28 +437,31 @@ draw_single_link(PwCanvas* canv, cairo_t* cr, PwLinkData* dat)
   AdwStyleManager *style = adw_style_manager_get_default ();
   gboolean is_dark = adw_style_manager_get_dark (style);
 
-  PwPad* p1 = pw_view_controller_get_pad_by_id(G_OBJECT(priv->controller), dat->in);
-  PwPad* p2 = pw_view_controller_get_pad_by_id(G_OBJECT(priv->controller), dat->out);
+  PwPad* p1 = pw_view_controller_get_pad_by_id(G_OBJECT(priv->controller), dat->out);
+  PwPad* p2 = pw_view_controller_get_pad_by_id(G_OBJECT(priv->controller), dat->in);
   graphene_rect_t rect1,rect2;
   gboolean res = gtk_widget_compute_bounds(GTK_WIDGET(p1), GTK_WIDGET(canv), &rect1);
   res &= gtk_widget_compute_bounds(GTK_WIDGET(p2), GTK_WIDGET(canv), &rect2);
   if(!res)
-    {g_log("Patchwork" , G_LOG_LEVEL_WARNING , "Bounds checking failed.");}
+    {g_warning("Bounds checking failed");}
 
-  int x1,x2,y1,y2;
+  int x1,x2,y1,y2, ydiff, xdiff;
 
-  x2 = rect2.origin.x + rect2.size.width;
+  x1 = rect1.origin.x + rect1.size.width;
+  y1 = rect1.origin.y + rect1.size.height/2;
+
+  x2 = rect2.origin.x;
   y2 = rect2.origin.y + rect2.size.height/2;
 
-  x1 = rect1.origin.x;
-  y1 = rect1.origin.y + rect1.size.height/2;
+  ydiff = ABS(y1-y2);
+  xdiff = ABS(x1-x2);
 
   gint col = (is_dark?1:0);
   cairo_set_source_rgba(cr, col, col, col, 0.6);
   cairo_set_line_width(cr, 2*priv->scale);
 
-  cairo_move_to(cr, x2, y2);
-  cairo_curve_to(cr, x2+abs(x2-x1)/2, y2, x1-abs(x2-x1)/2,y1,x1,y1);
+  cairo_move_to(cr, x1, y1);
+  cairo_curve_to(cr, x1+xdiff/2+ydiff/4, y1, x2-10-xdiff/2-ydiff/4,y2,x2,y2);
   cairo_stroke(cr);
 }
 
