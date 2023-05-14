@@ -305,13 +305,16 @@ canvas_get_node_bounds (PwCanvas* self)
   GtkWidget* child = gtk_widget_get_first_child(widget);
   while(child){
     PwNode* nod = PW_NODE(child);
-    graphene_rect_t rect;
-    gboolean success = gtk_widget_compute_bounds(child, widget, &rect);
+    int X, Y;
+    pw_node_get_pos(PW_NODE(child),&X, &Y);
+    int width, height;
+    gtk_widget_measure(child, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &width, NULL, NULL);
+    gtk_widget_measure(child, GTK_ORIENTATION_VERTICAL, -1, NULL, &height, NULL, NULL);
 
-    xmin = MIN(xmin,rect.origin.x);
-    ymin = MIN(ymin,rect.origin.y);
-    xmax = MAX(xmax, rect.origin.x+rect.size.width);
-    ymax = MAX(ymax, rect.origin.y+rect.size.height);
+    xmin = MIN(xmin, X);
+    ymin = MIN(ymin,Y);
+    xmax = MAX(xmax, X+width);
+    ymax = MAX(ymax, Y+height);
 
     child = gtk_widget_get_next_sibling(child);
   }
