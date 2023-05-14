@@ -181,11 +181,43 @@ pw_canvas_get_property (GObject *object, guint prop_id, GValue *value,
 }
 
 static void
-set_zoom(PwCanvas* self, gdouble zoom)
+canvas_set_zoom(PwCanvas* self, gdouble zoom, graphene_point_t *anchor)
 {
+  GtkWidget *widget = GTK_WIDGET(self);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
-  priv->scale = MAX(MIN_ZOOM,MIN(MAX_ZOOM,zoom));
+
+  if(!priv->adj[GTK_ORIENTATION_HORIZONTAL]||!priv->adj[GTK_ORIENTATION_VERTICAL]){
+    goto end;
+  }
+
+  gdouble x_anchor, y_anchor, hval, vval;
+  gdouble old_zoom = priv->scale;
+  gint H = gtk_widget_get_width(widget);
+  gint W = gtk_widget_get_height(widget);
+  if(anchor){
+    x_anchor = anchor->x;
+    y_anchor = anchor->y;
+  }else{
+    x_anchor = W*0.5;
+    y_anchor = H*0.5;
+  }
+
+  GtkAdjustment *hadj = priv->adj[GTK_ORIENTATION_HORIZONTAL];
+  GtkAdjustment *vadj = priv->adj[GTK_ORIENTATION_VERTICAL];
+
+  hval = gtk_adjustment_get_value(hadj);
+  vval = gtk_adjustment_get_value(vadj);
+
+  hval += x_anchor/old_zoom-x_anchor/zoom;
+  vval += y_anchor/old_zoom-y_anchor/zoom;
+
+  gtk_adjustment_set_value(hadj, hval);
+  gtk_adjustment_set_value(vadj, vval);
+
+end:
+  priv->scale = zoom;
   gtk_widget_queue_allocate (GTK_WIDGET (self));
+  g_object_notify(G_OBJECT(self), "zoom");
 }
 
 static void
@@ -210,7 +242,7 @@ pw_canvas_set_property (GObject *object, guint prop_id, const GValue *value,
       set_scroll_policy(self,GTK_ORIENTATION_VERTICAL, g_value_get_enum(value));
       break;
     case PROP_ZOOM:
-      set_zoom(self, g_value_get_double(value));
+      canvas_set_zoom(self, g_value_get_double(value), NULL);
       break;
     case PROP_CONTROLLER:
       set_controller (self, g_value_get_object (value));
@@ -514,7 +546,7 @@ pw_canvas_class_init (PwCanvasClass *klass)
 
   properties[PROP_ZOOM]
       = g_param_spec_double ("zoom", "Zoom", "Zoom/scale of the canvas", MIN_ZOOM,
-                             MAX_ZOOM, 1, G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+                             MAX_ZOOM, 1, G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_EXPLICIT_NOTIFY);
   properties[PROP_CONTROLLER] = g_param_spec_object (
       "controller", "Controller", "Driver of the canvas", G_TYPE_OBJECT,
       G_PARAM_READWRITE);
@@ -659,8 +691,12 @@ pipwewire_zgesture_scale_change(PwCanvas       *self,
                                 GtkGestureZoom *gest)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private(self);
+  gdouble X,Y;
+  gtk_gesture_get_bounding_box_center(GTK_GESTURE(priv->gest_zoom), &X, &Y);
+  graphene_point_t pt = {X,Y};
+
   gdouble delta = priv->zoom_gest_prev_scale - scale;
-  pw_canvas_set_zoom(self, pw_canvas_get_zoom(self) - delta);
+  canvas_set_zoom(self, pw_canvas_get_zoom(self) - delta, &pt);
   priv->zoom_gest_prev_scale = scale;
 }
 
