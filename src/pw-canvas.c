@@ -64,13 +64,13 @@ static void pw_canvas_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
 ///////////////////////////////////////////////////////////
 
 PwCanvas *
-pw_canvas_new (void)
+pw_canvas_new(void)
 {
   return g_object_new (PW_TYPE_CANVAS, NULL);
 }
 
 static void
-pw_canvas_dispose (GObject *object)
+pw_canvas_dispose(GObject *object)
 {
   GtkWidget *self = GTK_WIDGET (object);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (PW_CANVAS (object));
@@ -82,7 +82,7 @@ pw_canvas_dispose (GObject *object)
 }
 
 static void
-pw_canvas_finalize (GObject *object)
+pw_canvas_finalize(GObject *object)
 {
   PwCanvas *self = (PwCanvas *)object;
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
@@ -106,12 +106,15 @@ set_scroll_policy(PwCanvas *self, GtkOrientation or, GtkScrollablePolicy pol)
                             properties[PROP_VSCROLL_POLICY]);
 }
 
-static void canvas_adjustment_value_changed(GtkAdjustment* adj, gpointer data) {
+static void
+canvas_adjustment_value_changed(GtkAdjustment *adj, gpointer data)
+{
   gtk_widget_queue_allocate(GTK_WIDGET(data));
 }
 
-static void canvas_remove_adjustment(PwCanvas       *self,
-                                     GtkOrientation  or)
+static void
+canvas_remove_adjustment(PwCanvas       *self,
+                         GtkOrientation  or)
 {
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
   GtkAdjustment* adj = priv->adj[or];
@@ -142,7 +145,7 @@ set_adjustment(PwCanvas* self, GtkOrientation or, GObject* obj)
 }
 
 static void
-set_controller (PwCanvas *self, PwViewController *control)
+set_controller(PwCanvas *self, PwViewController *control)
 {
   g_return_if_fail (G_IS_OBJECT (control));
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
@@ -151,8 +154,8 @@ set_controller (PwCanvas *self, PwViewController *control)
 }
 
 static void
-pw_canvas_get_property (GObject *object, guint prop_id, GValue *value,
-                        GParamSpec *pspec)
+pw_canvas_get_property(GObject *object, guint prop_id, GValue *value,
+                       GParamSpec *pspec)
 {
   PwCanvasPrivate *self = pw_canvas_get_instance_private (PW_CANVAS (object));
 
@@ -222,8 +225,8 @@ end:
 }
 
 static void
-pw_canvas_set_property (GObject *object, guint prop_id, const GValue *value,
-                        GParamSpec *pspec)
+pw_canvas_set_property(GObject *object, guint prop_id, const GValue *value,
+                       GParamSpec *pspec)
 {
   PwCanvas *self = PW_CANVAS (object);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
@@ -254,15 +257,15 @@ pw_canvas_set_property (GObject *object, guint prop_id, const GValue *value,
 }
 
 static GtkSizeRequestMode
-pw_canvas_get_request_mode (GtkWidget *widget)
+pw_canvas_get_request_mode(GtkWidget *widget)
 {
   return GTK_SIZE_REQUEST_CONSTANT_SIZE;
 }
 
 static void
-pw_canvas_measure (GtkWidget *widget, GtkOrientation orientation, int for_size,
-                   int *minimum, int *natural, int *minimum_baseline,
-                   int *natural_baseline)
+pw_canvas_measure(GtkWidget *widget, GtkOrientation orientation, int for_size,
+                  int *minimum, int *natural, int *minimum_baseline,
+                  int *natural_baseline)
 {
   *minimum = 50;
   *natural = for_size < *minimum ? *minimum : for_size;
@@ -271,7 +274,7 @@ pw_canvas_measure (GtkWidget *widget, GtkOrientation orientation, int for_size,
 }
 
 static void
-allocate_node (GtkWidget *self, GtkWidget *child)
+allocate_node(GtkWidget *self, GtkWidget *child)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (PW_CANVAS (self));
   int x, y, w, h;
@@ -297,7 +300,7 @@ allocate_node (GtkWidget *self, GtkWidget *child)
  * Returns a rectangle that contains all nodes. In unscrolled screen (scaled) space
  */
 static graphene_rect_t
-canvas_get_node_bounds (PwCanvas* self)
+canvas_get_node_bounds(PwCanvas* self)
 {
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
   GtkWidget *widget = GTK_WIDGET(self);
@@ -361,8 +364,8 @@ canvas_configure_adj(PwCanvas        *self,
 }
 
 static void
-pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
-                         int baseline)
+pw_canvas_size_allocate(GtkWidget *widget, int width, int height,
+                        int baseline)
 {
   PwCanvas* self = PW_CANVAS(widget);
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
@@ -372,15 +375,14 @@ pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
   canvas_configure_adj(self, GTK_ORIENTATION_VERTICAL, bounds, height, CANV_EXTRA);
 
   GList *list = pw_view_controller_get_node_list(priv->controller);
-  while (list)
-    {
-      allocate_node (widget, GTK_WIDGET(list->data));
-      list = list->next;
-    }
+  while(list){
+    allocate_node (widget, GTK_WIDGET(list->data));
+    list = list->next;
+  }
 }
 
 static void
-snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
+snapshot_bg(GtkWidget *widget, GtkSnapshot *snapshot)
 {
   AdwStyleManager *style = adw_style_manager_get_default ();
   gboolean is_dark = adw_style_manager_get_dark (style);
@@ -415,19 +417,17 @@ snapshot_bg (GtkWidget *widget, GtkSnapshot *snapshot)
 }
 
 static void
-snapshot_nodes (GtkWidget *widget, GtkSnapshot *snapshot)
+snapshot_nodes(GtkWidget *widget, GtkSnapshot *snapshot)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (PW_CANVAS(widget));
   PwViewControllerInterface *iface = PW_VIEW_CONTROLLER_GET_IFACE (priv->controller);
 
   GList* nodes = iface->get_node_list(priv->controller);
 
-  while (nodes)
-    {
-      gtk_widget_snapshot_child (widget, GTK_WIDGET(nodes->data), snapshot);
-
-      nodes = nodes->next;
-    }
+  while (nodes){
+    gtk_widget_snapshot_child (widget, GTK_WIDGET(nodes->data), snapshot);
+    nodes = nodes->next;
+  }
 }
 
 static void
@@ -479,24 +479,21 @@ draw_dragged_link(PwCanvas* canv, cairo_t* cr)
 
   int x1, y1, x2, y2, mid1, mid2;
 
-  if(is_out)
-    {
-      x1 = rect.origin.x + rect.size.width;
-      y1 = rect.origin.y + rect.size.height/2;
-      x2 = priv->dr_x;
-      y2 = priv->dr_y;
-      mid1 = x1+abs(x2-x1)/2;
-      mid2 = x2+(x1<x2?-1:1)*abs(x2-x1)/2;
-    }
-  else
-    {
-      x1 = priv->dr_x;
-      y1 = priv->dr_y;
-      x2 = rect.origin.x;
-      y2 = rect.origin.y + rect.size.height/2;
-      mid1 = x1+(x1<x2?1:-1)*abs(x2-x1)/2;
-      mid2 = x2-abs(x2-x1)/2;
-    }
+  if(is_out){
+    x1 = rect.origin.x + rect.size.width;
+    y1 = rect.origin.y + rect.size.height/2;
+    x2 = priv->dr_x;
+    y2 = priv->dr_y;
+    mid1 = x1+abs(x2-x1)/2;
+    mid2 = x2+(x1<x2?-1:1)*abs(x2-x1)/2;
+  }else{
+    x1 = priv->dr_x;
+    y1 = priv->dr_y;
+    x2 = rect.origin.x;
+    y2 = rect.origin.y + rect.size.height/2;
+    mid1 = x1+(x1<x2?1:-1)*abs(x2-x1)/2;
+    mid2 = x2-abs(x2-x1)/2;
+  }
 
   gint col = (1);
   cairo_set_source_rgba(cr, col, col, col, 0.6);
@@ -508,7 +505,7 @@ draw_dragged_link(PwCanvas* canv, cairo_t* cr)
 }
 
 static void
-snapshot_links (GtkWidget* widget, GtkSnapshot* snapshot)
+snapshot_links(GtkWidget* widget, GtkSnapshot* snapshot)
 {
   PwCanvas* canv = PW_CANVAS(widget);
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
@@ -520,23 +517,20 @@ snapshot_links (GtkWidget* widget, GtkSnapshot* snapshot)
   // TODO: test out if single cairo node approach is actually faster than spearate nodes
   cairo_t* cai =gtk_snapshot_append_cairo(snapshot, &canv_rect);
 
+  if(priv->dr_obj && PW_IS_PAD(priv->dr_obj)){
+    draw_dragged_link(canv, cai);
+  }
 
-  if(priv->dr_obj && PW_IS_PAD(priv->dr_obj))
-    {
-      draw_dragged_link(canv, cai);
-    }
-
-  while(link)
-    {
-      PwLinkData* ldat = link->data;
-      draw_single_link(canv, cai, link->data);
-      link=link->next;
-    }
+  while(link){
+    PwLinkData* ldat = link->data;
+    draw_single_link(canv, cai, link->data);
+    link=link->next;
+  }
   cairo_destroy(cai);
 }
 
 static void
-pw_canvas_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
+pw_canvas_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 {
   snapshot_bg (widget, snapshot);
   snapshot_nodes (widget, snapshot);
@@ -544,7 +538,7 @@ pw_canvas_snapshot (GtkWidget *widget, GtkSnapshot *snapshot)
 }
 
 static void
-pw_canvas_class_init (PwCanvasClass *klass)
+pw_canvas_class_init(PwCanvasClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
@@ -577,42 +571,39 @@ pw_canvas_class_init (PwCanvasClass *klass)
 }
 
 static GdkContentProvider *
-prepare_cb (GtkDragSource *self, gdouble x, gdouble y, gpointer user_data)
+prepare_cb(GtkDragSource *self, gdouble x, gdouble y, gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   GtkWidget *widget = GTK_WIDGET (canv);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
 
   GtkWidget *pick = gtk_widget_pick (widget, x, y, GTK_PICK_DEFAULT);
-  while (pick)
-    {
-      if (PW_IS_PAD (pick))
-        {
-          priv->dr_x = x;
-          priv->dr_y = y;
-          priv->dr_obj = pick;
+  while (pick){
+    if(PW_IS_PAD (pick)){
+      priv->dr_x = x;
+      priv->dr_y = y;
+      priv->dr_obj = pick;
 
-          return gdk_content_provider_new_typed (PW_TYPE_PAD, pick);
-        }
-
-      if (PW_IS_NODE (pick))
-        {
-          int nx, ny;
-          pw_node_get_pos (PW_NODE (pick), &nx, &ny);
-          priv->dr_x = (x / priv->scale) - nx;
-          priv->dr_y = (y / priv->scale) - ny;
-          priv->dr_obj = pick;
-
-          return gdk_content_provider_new_typed (PW_TYPE_NODE, pick);
-        }
-      pick = gtk_widget_get_parent (pick);
+      return gdk_content_provider_new_typed (PW_TYPE_PAD, pick);
     }
+
+    if(PW_IS_NODE (pick)){
+      int nx, ny;
+      pw_node_get_pos (PW_NODE (pick), &nx, &ny);
+      priv->dr_x = (x / priv->scale) - nx;
+      priv->dr_y = (y / priv->scale) - ny;
+      priv->dr_obj = pick;
+
+      return gdk_content_provider_new_typed (PW_TYPE_NODE, pick);
+    }
+    pick = gtk_widget_get_parent (pick);
+  }
 
   return NULL;
 }
 
 static void
-drag_begin_cb (GtkDragSource *self, GdkDrag *drag, gpointer user_data)
+drag_begin_cb(GtkDragSource *self, GdkDrag *drag, gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -620,49 +611,44 @@ drag_begin_cb (GtkDragSource *self, GdkDrag *drag, gpointer user_data)
   gtk_drag_source_set_icon (self, empty_icon, 0, 0);
   g_object_unref(empty_icon);
 
-  if (PW_IS_NODE (priv->dr_obj))
-    {
-      PwNode* nod = PW_NODE(priv->dr_obj);
-      pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
-    }
+  if(PW_IS_NODE (priv->dr_obj)){
+    PwNode* nod = PW_NODE(priv->dr_obj);
+    pw_view_controller_node_to_front(priv->controller, pw_node_get_id(nod));
+  }
 }
 
 static void
-drag_end_cb (GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
-             gpointer user_data)
+drag_end_cb(GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
+            gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
 
-  if (PW_IS_NODE (priv->dr_obj))
-    {
-      gdk_drag_set_hotspot (drag, 0, 0);
-      priv->dr_obj = NULL;
-    }
-  else if(PW_IS_PAD(priv->dr_obj))
-    {
-      priv->dr_obj = NULL;
-      gtk_widget_queue_draw(GTK_WIDGET(canv));
-    }
+  if(PW_IS_NODE (priv->dr_obj)){
+    gdk_drag_set_hotspot (drag, 0, 0);
+    priv->dr_obj = NULL;
+  }else if(PW_IS_PAD(priv->dr_obj)){
+    priv->dr_obj = NULL;
+    gtk_widget_queue_draw(GTK_WIDGET(canv));
+  }
 }
 
 static void
-drag_cancel_cb (GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
-                gpointer user_data)
+drag_cancel_cb(GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
+               gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
 
-  if (PW_IS_NODE (priv->dr_obj))
-    {
-      gdk_drag_set_hotspot (drag, priv->dr_x, priv->dr_y);
-      priv->dr_obj = NULL;
-    }
+  if(PW_IS_NODE (priv->dr_obj)){
+    gdk_drag_set_hotspot (drag, priv->dr_x, priv->dr_y);
+    priv->dr_obj = NULL;
+  }
 }
 
 static gboolean
-drop_cb (GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
-         gpointer user_data)
+drop_cb(GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
+        gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -677,24 +663,21 @@ drop_cb (GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
 }
 
 static void
-motion_cb (GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
+motion_cb(GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
 
 
-  if(PW_IS_NODE(priv->dr_obj))
-    {
-      PwNode *nod = PW_NODE (priv->dr_obj);
-      pw_node_set_xpos (nod, (x / priv->scale) - priv->dr_x);
-      pw_node_set_ypos (nod, (y / priv->scale) - priv->dr_y);
-    }
-  else if(PW_IS_PAD(priv->dr_obj))
-    {
-      priv->dr_x = x;
-      priv->dr_y = y;
-      gtk_widget_queue_draw(GTK_WIDGET(canv));
-    }
+  if(PW_IS_NODE(priv->dr_obj)){
+    PwNode *nod = PW_NODE (priv->dr_obj);
+    pw_node_set_xpos (nod, (x / priv->scale) - priv->dr_x);
+    pw_node_set_ypos (nod, (y / priv->scale) - priv->dr_y);
+  }else if(PW_IS_PAD(priv->dr_obj)){
+    priv->dr_x = x;
+    priv->dr_y = y;
+    gtk_widget_queue_draw(GTK_WIDGET(canv));
+  }
 }
 
 static void
@@ -722,14 +705,14 @@ pipwewire_zgesture_scale_change(PwCanvas       *self,
 }
 
 static void
-pipewire_changed_cb (GObject *object, gpointer user_data)
+pipewire_changed_cb(GObject *object, gpointer user_data)
 {
   PwCanvas* self = PW_CANVAS(user_data);
   gtk_widget_queue_allocate(GTK_WIDGET(self));
 }
 
 static void
-pw_canvas_init (PwCanvas *self)
+pw_canvas_init(PwCanvas *self)
 {
   GtkWidget *widget = GTK_WIDGET (self);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
@@ -768,14 +751,14 @@ pw_canvas_init (PwCanvas *self)
 }
 
 gdouble
-pw_canvas_get_zoom (PwCanvas *self)
+pw_canvas_get_zoom(PwCanvas *self)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
   return priv->scale;
 }
 
 void
-pw_canvas_set_zoom (PwCanvas *self, gdouble zoom)
+pw_canvas_set_zoom(PwCanvas *self, gdouble zoom)
 {
   g_object_set(self, "zoom", MIN(MAX_ZOOM, MAX(MIN_ZOOM, zoom)) ,NULL);
 }
