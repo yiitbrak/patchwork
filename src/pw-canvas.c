@@ -756,6 +756,6 @@ pw_canvas_get_zoom (PwCanvas *self)
 void
 pw_canvas_set_zoom (PwCanvas *self, gdouble zoom)
 {
-  g_object_set (self, "zoom", zoom, NULL);
+  g_object_set(self, "zoom", MIN(MAX_ZOOM, MAX(MIN_ZOOM, zoom)) ,NULL);
 }
 
