@@ -5,7 +5,7 @@
 #include "pw-view-controller.h"
 
 #define MAX_ZOOM 5.0
-#define MIN_ZOOM 0.10
+#define MIN_ZOOM 0.25
 #define CANV_EXTRA 100
 
 typedef struct
