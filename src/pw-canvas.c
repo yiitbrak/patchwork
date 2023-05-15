@@ -578,25 +578,22 @@ prepare_cb(GtkDragSource *self, gdouble x, gdouble y, gpointer user_data)
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
 
   GtkWidget *pick = gtk_widget_pick (widget, x, y, GTK_PICK_DEFAULT);
-  while (pick){
-    if(PW_IS_PAD (pick)){
-      priv->dr_x = x;
-      priv->dr_y = y;
-      priv->dr_obj = pick;
+  GtkWidget *ancestor;
+  if((ancestor = gtk_widget_get_ancestor(pick, PW_TYPE_PAD))){
+    priv->dr_x = x;
+    priv->dr_y = y;
+    priv->dr_obj = ancestor;
 
-      return gdk_content_provider_new_typed (PW_TYPE_PAD, pick);
-    }
+    return gdk_content_provider_new_typed (PW_TYPE_PAD, ancestor);
+  }
 
-    if(PW_IS_NODE (pick)){
-      int nx, ny;
-      pw_node_get_pos (PW_NODE (pick), &nx, &ny);
-      priv->dr_x = (x / priv->scale) - nx;
-      priv->dr_y = (y / priv->scale) - ny;
-      priv->dr_obj = pick;
-
-      return gdk_content_provider_new_typed (PW_TYPE_NODE, pick);
-    }
-    pick = gtk_widget_get_parent (pick);
+  if((ancestor = gtk_widget_get_ancestor(pick, PW_TYPE_NODE))){
+    int nx, ny;
+    pw_node_get_pos (PW_NODE (ancestor), &nx, &ny);
+    priv->dr_x = (x / priv->scale) - nx;
+    priv->dr_y = (y / priv->scale) - ny;
+    priv->dr_obj = ancestor;
+    return gdk_content_provider_new_typed (PW_TYPE_NODE, ancestor);
   }
 
   return NULL;
