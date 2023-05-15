@@ -22,7 +22,37 @@ typedef struct
   GtkDropTarget *dr_tgt;
   GtkEventController *dr_motion;
   GtkGesture *gest_zoom;
+  GtkGesture *gest_drag;
 } PwCanvasPrivate;
+
+struct _PwRubberband
+{
+  GtkWidget parent_instance;
+
+  GtkAllocation al;
+};
+
+#define PW_TYPE_RUBBERBAND (pw_rubberband_get_type())
+
+G_DECLARE_FINAL_TYPE (PwRubberband, pw_rubberband, RUBBERBAND, PW, GtkWidget)
+
+G_DEFINE_FINAL_TYPE (PwRubberband, pw_rubberband, GTK_TYPE_WIDGET)
+
+static PwRubberband *
+pw_rubberband_new(void)
+{
+  return g_object_new(PW_TYPE_RUBBERBAND, NULL);;
+}
+
+static void
+pw_rubberband_class_init (PwRubberbandClass *klass)
+{
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+  gtk_widget_class_set_css_name(widget_class, "rubberband");
+}
+
+static void
+pw_rubberband_init (PwRubberband *self){}
 
 G_DEFINE_TYPE_WITH_CODE (PwCanvas, pw_canvas, GTK_TYPE_WIDGET,
                          G_IMPLEMENT_INTERFACE(GTK_TYPE_SCROLLABLE, NULL)
@@ -380,6 +410,11 @@ pw_canvas_size_allocate(GtkWidget *widget, int width, int height,
     allocate_node (widget, GTK_WIDGET(list->data));
     list = list->next;
   }
+
+  PwRubberband *rb = g_object_get_data(G_OBJECT(self), "rubberband");
+  if(rb){
+    gtk_widget_size_allocate(GTK_WIDGET(rb), &rb->al, -1);
+  }
 }
 
 static void
@@ -531,11 +566,25 @@ snapshot_links(GtkWidget* widget, GtkSnapshot* snapshot)
 }
 
 static void
+snapshot_rubberband(GtkWidget* widget, GtkSnapshot* snapshot)
+{
+  PwCanvas* canv = PW_CANVAS(widget);
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
+
+  GtkWidget *rb = g_object_get_data(G_OBJECT(canv), "rubberband");
+
+  if(rb){
+    gtk_widget_snapshot_child(widget, rb, snapshot);
+  }
+}
+
+static void
 pw_canvas_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 {
   snapshot_bg (widget, snapshot);
   snapshot_nodes (widget, snapshot);
   snapshot_links (widget, snapshot);
+  snapshot_rubberband(widget, snapshot);
 }
 
 static void
@@ -679,18 +728,18 @@ motion_cb(GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
 }
 
 static void
-pipwewire_zgesture_begin(PwCanvas         *self,
-                         GdkEventSequence *sequence,
-                         GtkGesture       *gest)
+canvas_zgesture_begin(PwCanvas         *self,
+                      GdkEventSequence *sequence,
+                      GtkGesture       *gest)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private(self);
   priv->zoom_gest_prev_scale = 1.0;
 }
 
 static void
-pipwewire_zgesture_scale_change(PwCanvas       *self,
-                                gdouble         scale,
-                                GtkGestureZoom *gest)
+canvas_zgesture_scale_change(PwCanvas       *self,
+                             gdouble         scale,
+                             GtkGestureZoom *gest)
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private(self);
   gdouble X,Y;
@@ -700,6 +749,73 @@ pipwewire_zgesture_scale_change(PwCanvas       *self,
   gdouble delta = priv->zoom_gest_prev_scale - scale;
   canvas_set_zoom(self, pw_canvas_get_zoom(self) - delta, &pt);
   priv->zoom_gest_prev_scale = scale;
+}
+
+static void
+drgesture_update_allocation(GtkAllocation *al,
+                            int            x_start,
+                            int            y_start,
+                            int            x_offset,
+                            int            y_offset)
+{
+  if(x_offset<0){
+    al->x = x_start + x_offset;
+    al->width = -x_offset;
+  }else{
+    al->x = x_start;
+    al->width = x_offset;
+  }
+
+  if(y_offset<0){
+    al->y = y_start + y_offset;
+    al->height = -y_offset;
+  }else{
+    al->y = y_start;
+    al->height = y_offset;
+  }
+}
+
+static void
+canvas_drgesture_drag_begin(PwCanvas       *self,
+                            gdouble         start_x,
+                            gdouble         start_y,
+                            GtkGestureDrag *gest)
+{
+  PwRubberband *rb = pw_rubberband_new();
+
+  gtk_widget_set_parent(GTK_WIDGET(rb), GTK_WIDGET(self));
+
+  drgesture_update_allocation(&rb->al, start_y, start_x, 0, 0);
+
+  gtk_widget_queue_allocate(GTK_WIDGET(self));
+  g_object_set_data(G_OBJECT(self), "rubberband", rb);
+}
+
+static void
+canvas_drgesture_drag_update(PwCanvas       *self,
+                             gdouble         x_offset,
+                             gdouble         y_offset,
+                             GtkGestureDrag *gest)
+{
+  PwRubberband *rb = g_object_get_data(G_OBJECT(self), "rubberband");
+
+  double x,y;
+  gtk_gesture_drag_get_start_point(gest, &x, &y);
+  drgesture_update_allocation(&rb->al, x, y, x_offset, y_offset);
+
+  gtk_widget_queue_allocate(GTK_WIDGET(self));
+}
+
+static void
+canvas_drgesture_drag_end(PwCanvas       *self,
+                          gdouble         x_offset,
+                          gdouble         y_offset,
+                          GtkGestureDrag *gest)
+{
+  GtkWidget *rb = g_object_get_data(G_OBJECT(self), "rubberband");
+
+  gtk_widget_unparent(rb);
+  g_object_set_data(G_OBJECT(self), "rubberband", NULL);
 }
 
 static void
@@ -717,15 +833,17 @@ pw_canvas_init(PwCanvas *self)
   PwPipewire *con = pw_pipewire_new (self);
   priv->controller = G_OBJECT (con);
 
-  priv->dr_src = gtk_drag_source_new ();
+  g_object_set(gtk_widget_get_settings(widget), "gtk-dnd-drag-threshold" , 1, NULL);
+
+  priv->dr_src = gtk_drag_source_new();
+  // Capture because DnD should be triggered before drag gesture
+  gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(priv->dr_src), GTK_PHASE_CAPTURE);
   gtk_drag_source_set_icon (priv->dr_src, NULL, 0, 0);
   gtk_drag_source_set_actions (priv->dr_src, GDK_ACTION_MOVE);
   g_signal_connect (priv->dr_src, "prepare", G_CALLBACK (prepare_cb), self);
-  g_signal_connect (priv->dr_src, "drag-begin", G_CALLBACK (drag_begin_cb),
-                    self);
+  g_signal_connect (priv->dr_src, "drag-begin", G_CALLBACK (drag_begin_cb), self);
   g_signal_connect (priv->dr_src, "drag-end", G_CALLBACK (drag_end_cb), self);
-  g_signal_connect (priv->dr_src, "drag-cancel", G_CALLBACK (drag_cancel_cb),
-                    self);
+  g_signal_connect (priv->dr_src, "drag-cancel", G_CALLBACK (drag_cancel_cb), self);
   gtk_widget_add_controller (widget, GTK_EVENT_CONTROLLER (priv->dr_src));
 
   priv->dr_tgt = gtk_drop_target_new (PW_TYPE_NODE, GDK_ACTION_MOVE);
@@ -737,9 +855,16 @@ pw_canvas_init(PwCanvas *self)
   gtk_widget_add_controller (widget, priv->dr_motion);
 
   priv->gest_zoom = gtk_gesture_zoom_new();
-  g_signal_connect_swapped(priv->gest_zoom, "begin", G_CALLBACK(pipwewire_zgesture_begin), self);
-  g_signal_connect_swapped(priv->gest_zoom, "scale-changed", G_CALLBACK(pipwewire_zgesture_scale_change), self);
+  g_signal_connect_swapped(priv->gest_zoom, "begin", G_CALLBACK(canvas_zgesture_begin), self);
+  g_signal_connect_swapped(priv->gest_zoom, "scale-changed", G_CALLBACK(canvas_zgesture_scale_change), self);
   gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(priv->gest_zoom));
+
+  priv->gest_drag = gtk_gesture_drag_new();
+  gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(priv->gest_drag), GTK_PHASE_TARGET);
+  g_signal_connect_swapped(priv->gest_drag, "drag-begin", G_CALLBACK(canvas_drgesture_drag_begin), self);
+  g_signal_connect_swapped(priv->gest_drag, "drag-update", G_CALLBACK(canvas_drgesture_drag_update), self);
+  g_signal_connect_swapped(priv->gest_drag, "drag-end", G_CALLBACK(canvas_drgesture_drag_end), self);
+  gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(priv->gest_drag));
 
   g_signal_connect(con, "changed", G_CALLBACK(pipewire_changed_cb), self);
 

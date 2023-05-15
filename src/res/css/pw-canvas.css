@@ -1,3 +1,9 @@
 canvas:drop(active):not(disabled){
-  box-shadow: none;
+box-shadow: none;
+}
+
+rubberband{
+background-color: alpha(@canvas_rubberband_color, 0.3);
+border: 2px solid darker(@canvas_rubberband_color);
+border-radius: 8px;
 }
