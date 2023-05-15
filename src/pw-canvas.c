@@ -306,8 +306,9 @@ canvas_get_node_bounds(PwCanvas* self)
   GtkWidget *widget = GTK_WIDGET(self);
   gfloat xmin=G_MAXFLOAT,ymin=G_MAXFLOAT,xmax=G_MINFLOAT,ymax=G_MINFLOAT;
 
-  GtkWidget* child = gtk_widget_get_first_child(widget);
-  while(child){
+  GList *l = pw_view_controller_get_node_list(priv->controller);
+  while(l){
+    GtkWidget *child = GTK_WIDGET(l->data);
     PwNode* nod = PW_NODE(child);
     int X, Y;
     pw_node_get_pos(PW_NODE(child),&X, &Y);
@@ -320,7 +321,7 @@ canvas_get_node_bounds(PwCanvas* self)
     xmax = MAX(xmax, X+width);
     ymax = MAX(ymax, Y+height);
 
-    child = gtk_widget_get_next_sibling(child);
+    l = l->next;
   }
   graphene_rect_t res = GRAPHENE_RECT_INIT(xmin, ymin, xmax, ymax);
 
