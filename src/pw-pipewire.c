@@ -37,6 +37,14 @@ typedef struct
   void *data;
 } Message;
 
+typedef enum
+{
+  CAT_OTHER = 0,
+  CAT_SOURCE = 1<<0,
+  CAT_SINK = 1<<1,
+  CAT_DUPLEX = CAT_SOURCE|CAT_SINK,
+} NodeCategory;
+
 static void pw_view_controller_iface_init (PwViewControllerInterface *iface);
 
 G_DEFINE_TYPE_WITH_CODE (PwPipewire, pw_pipewire, G_TYPE_OBJECT, G_IMPLEMENT_INTERFACE (PW_TYPE_VIEW_CONTROLLER, pw_view_controller_iface_init))
@@ -150,22 +158,72 @@ pw_pipewire_class_init (PwPipewireClass *klass)
 }
 
 static void
+fill_rect_data(PwNode *nod, graphene_rect_t *rect)
+{
+  gint x,y,w,h;
+  pw_node_get_pos(nod, &x, &y);
+  rect->origin.x = x;
+  rect->origin.y = y;
+  gtk_widget_measure(GTK_WIDGET(nod), GTK_ORIENTATION_HORIZONTAL, -1, NULL, &w, NULL, NULL);
+  gtk_widget_measure(GTK_WIDGET(nod), GTK_ORIENTATION_VERTICAL, -1, NULL, &h, NULL, NULL);
+  rect->size.width = w;
+  rect->size.height = h;
+}
+
+static void
+pipewire_calc_node_pos(PwPipewire *self, PwNodeData *dat, graphene_point_t *pos)
+{
+  static const int segment = 500;
+  static int counter[3] = {0,};
+  graphene_rect_t rect;
+  int i;
+  GList *l = self->nodes;
+
+  int cat = dat->category;
+  switch(cat){
+  case CAT_SOURCE:
+    pos->x = 20;
+    i=0;
+    break;
+  case CAT_DUPLEX:
+  case CAT_OTHER:
+    pos->x = segment+20;
+    i=1;
+    break;
+  case CAT_SINK:
+    pos->x = segment*2+20;
+    i=2;
+    break;
+  }
+
+  pos->y = 20;
+  while(l){
+    PwNode *nod = PW_NODE(l->data);
+    fill_rect_data(nod, &rect);
+
+    if(rect.origin.x == pos->x && rect.origin.y == pos->y){
+      pos->y = counter[i] += 100;
+    }
+
+    l=l->next;
+  }
+}
+
+static void
 pw_pipewire_add_node (GObject *self, PwCanvas *canv, PwNodeData nod)
 {
-  static int cord = 0;
-
   g_return_if_fail (PW_IS_PIPEWIRE (self));
   PwPipewire *con = PW_PIPEWIRE (self);
 
   PwNode *nnod = pw_node_new (nod.id);
-  pw_node_set_xpos (nnod, cord);
-  pw_node_set_ypos (nnod, cord);
-  g_object_set (G_OBJECT (nnod), "title", nod.title, "type", nod.type, NULL);
+  graphene_point_t pos;
+  pipewire_calc_node_pos(con, &nod, &pos);
+
+  g_object_set (G_OBJECT (nnod), "title", nod.title, "type", nod.type,
+                "x-pos", (int)pos.x,"y-pos", (int)pos.y, NULL);
 
   con->nodes = g_list_prepend (con->nodes, nnod);
   gtk_widget_set_parent (GTK_WIDGET (nnod), GTK_WIDGET (canv));
-
-  cord += 50;
 }
 
 static void
@@ -475,6 +533,28 @@ port_get_type(const struct spa_dict *props)
   return PW_PAD_TYPE_OTHER;
 }
 
+static NodeCategory
+port_get_category(const struct spa_dict *props)
+{
+  const char *str = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+  if(str==NULL)
+    str = spa_dict_lookup(props, PW_KEY_MEDIA_CATEGORY);
+  if(str==NULL)
+    return CAT_OTHER;
+
+  NodeCategory res = CAT_OTHER;
+  if(g_strrstr(str, "Output")||g_strrstr(str, "Source"))
+     res |= CAT_SOURCE;
+
+  if(g_strrstr(str, "Sink")||g_strrstr(str, "Input"))
+    res |= CAT_SINK;
+
+  if(g_strrstr(str, "Filter")||g_strrstr(str, "Bridge"))
+    res = CAT_DUPLEX;
+
+  return res;
+}
+
 static void
 reg_fill_node (Message *msg, guint32 id, const struct spa_dict *props)
 {
@@ -490,10 +570,12 @@ reg_fill_node (Message *msg, guint32 id, const struct spa_dict *props)
     name = "Unnamed node";
 
   PwPadType type = port_get_type(props);
+  NodeCategory cat = port_get_category(props);
 
   dat->id = id;
   dat->title = g_strdup (name);
   dat->type = type;
+  dat->category = cat;
 
   msg->data = dat;
 }

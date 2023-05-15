@@ -11,6 +11,7 @@ typedef struct
   guint32 id;
   const char *title;
   gint type;
+  gint category;
 } PwNodeData;
 
 typedef struct
