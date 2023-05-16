@@ -2,6 +2,7 @@
 <gresources>
   <gresource prefix="/org/nidi/patchwork">
     <file preprocess="xml-stripblanks">res/ui/pw-window.ui</file>
+    <file preprocess="xml-stripblanks">res/ui/pw-canvas.ui</file>
     <file preprocess="xml-stripblanks">res/ui/pw-node.ui</file>
     <file preprocess="xml-stripblanks">res/ui/pw-zoom-entry.ui</file>
     <file>res/css/colors-dark.css</file>

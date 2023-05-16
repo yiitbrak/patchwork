@@ -18,11 +18,6 @@ typedef struct
   gdouble zoom_gest_prev_scale;
 
   GObject *controller;
-  GtkDragSource *dr_src;
-  GtkDropTarget *dr_tgt;
-  GtkEventController *dr_motion;
-  GtkGesture *gest_zoom;
-  GtkGesture *gest_drag;
 } PwCanvasPrivate;
 
 struct _PwRubberband
@@ -73,6 +68,9 @@ enum
 static GParamSpec *properties[N_PROPS];
 
 ///////////////////////////////////////////////////////////
+static void
+pw_canvas_dispose(GObject *object);
+
 static void pw_canvas_finalize (GObject *object);
 
 static void pw_canvas_get_property (GObject *object, guint prop_id,
@@ -91,6 +89,73 @@ static void pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
                                      int baseline);
 
 static void pw_canvas_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
+
+static GdkContentProvider *
+canvas_dnd_prepare(GtkDragSource *self,
+                   gdouble        x,
+                   gdouble        y,
+                   gpointer       user_data);
+
+static void
+canvas_dnd_begin(GtkDragSource *self,
+                 GdkDrag       *drag,
+                 gpointer       user_data);
+
+static void
+canvas_dnd_end(GtkDragSource *self,
+               GdkDrag       *drag,
+               gboolean       delete_data,
+               gpointer       user_data);
+
+static void
+canvas_dnd_cancel(GtkDragSource *self,
+                  GdkDrag       *drag,
+                  gboolean       delete_data,
+                  gpointer       user_data);
+
+static gboolean
+canvas_dnd_drop(GtkDropTarget *self,
+                const GValue  *value,
+                gdouble        x,
+                gdouble        y,
+                gpointer       user_data);
+
+static void
+canvas_dnd_motion(GtkDropTarget *self,
+                  gdouble        x,
+                  gdouble        y,
+                  gpointer       user_data);
+
+static void
+canvas_zgesture_begin(PwCanvas         *self,
+                      GdkEventSequence *sequence,
+                      GtkGesture       *gest);
+
+static void
+canvas_zgesture_scale_change(PwCanvas       *self,
+                             gdouble         scale,
+                             GtkGestureZoom *gest);
+
+static void
+canvas_drgesture_drag_begin(PwCanvas       *self,
+                            gdouble         start_x,
+                            gdouble         start_y,
+                            GtkGestureDrag *gest);
+
+static void
+canvas_drgesture_drag_update(PwCanvas       *self,
+                             gdouble         x_offset,
+                             gdouble         y_offset,
+                             GtkGestureDrag *gest);
+
+static void
+canvas_drgesture_drag_end(PwCanvas       *self,
+                          gdouble         x_offset,
+                          gdouble         y_offset,
+                          GtkGestureDrag *gest);
+
+static void
+pipewire_changed_cb(GObject *object, gpointer user_data);
 ///////////////////////////////////////////////////////////
 
 PwCanvas *
@@ -104,7 +169,8 @@ pw_canvas_dispose(GObject *object)
 {
   GtkWidget *self = GTK_WIDGET (object);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (PW_CANVAS (object));
-  GtkWidget *child = gtk_widget_get_first_child (self);
+
+  gtk_widget_dispose_template(self, PW_TYPE_CANVAS);
 
   g_clear_object (&priv->controller);
 
@@ -617,11 +683,28 @@ pw_canvas_class_init(PwCanvasClass *klass)
       G_PARAM_READWRITE);
   g_object_class_install_properties (object_class, N_PROPS, properties);
 
+  g_type_ensure(PW_TYPE_NODE); // for GtkDropTarget's format
+  gtk_widget_class_set_template_from_resource(widget_class, "/org/nidi/patchwork/res/ui/pw-canvas.ui");
+  gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_prepare);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_begin);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_end);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_cancel);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_drop);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_motion);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_zgesture_begin);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_zgesture_scale_change);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_drgesture_drag_begin);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_drgesture_drag_update);
+  gtk_widget_class_bind_template_callback(widget_class, canvas_drgesture_drag_end);
+
   gtk_widget_class_set_css_name (widget_class, "canvas");
 }
 
 static GdkContentProvider *
-prepare_cb(GtkDragSource *self, gdouble x, gdouble y, gpointer user_data)
+canvas_dnd_prepare(GtkDragSource *self,
+                   gdouble        x,
+                   gdouble        y,
+                   gpointer       user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   GtkWidget *widget = GTK_WIDGET (canv);
@@ -650,7 +733,9 @@ prepare_cb(GtkDragSource *self, gdouble x, gdouble y, gpointer user_data)
 }
 
 static void
-drag_begin_cb(GtkDragSource *self, GdkDrag *drag, gpointer user_data)
+canvas_dnd_begin(GtkDragSource *self,
+                 GdkDrag       *drag,
+                 gpointer       user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -665,8 +750,10 @@ drag_begin_cb(GtkDragSource *self, GdkDrag *drag, gpointer user_data)
 }
 
 static void
-drag_end_cb(GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
-            gpointer user_data)
+canvas_dnd_end(GtkDragSource *self,
+               GdkDrag       *drag,
+               gboolean       delete_data,
+               gpointer       user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -681,8 +768,10 @@ drag_end_cb(GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
 }
 
 static void
-drag_cancel_cb(GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
-               gpointer user_data)
+canvas_dnd_cancel(GtkDragSource *self,
+                  GdkDrag       *drag,
+                  gboolean       delete_data,
+                  gpointer       user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -694,8 +783,11 @@ drag_cancel_cb(GtkDragSource *self, GdkDrag *drag, gboolean delete_data,
 }
 
 static gboolean
-drop_cb(GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
-        gpointer user_data)
+canvas_dnd_drop(GtkDropTarget *self,
+                const GValue  *value,
+                gdouble        x,
+                gdouble        y,
+                gpointer       user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -710,7 +802,10 @@ drop_cb(GtkDropTarget *self, const GValue *value, gdouble x, gdouble y,
 }
 
 static void
-motion_cb(GtkDropTarget *self, gdouble x, gdouble y, gpointer user_data)
+canvas_dnd_motion(GtkDropTarget *self,
+                  gdouble        x,
+                  gdouble        y,
+                  gpointer       user_data)
 {
   PwCanvas *canv = PW_CANVAS (user_data);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (canv);
@@ -743,7 +838,7 @@ canvas_zgesture_scale_change(PwCanvas       *self,
 {
   PwCanvasPrivate *priv = pw_canvas_get_instance_private(self);
   gdouble X,Y;
-  gtk_gesture_get_bounding_box_center(GTK_GESTURE(priv->gest_zoom), &X, &Y);
+  gtk_gesture_get_bounding_box_center(GTK_GESTURE(gest), &X, &Y);
   graphene_point_t pt = {X,Y};
 
   gdouble delta = priv->zoom_gest_prev_scale - scale;
@@ -833,43 +928,10 @@ pw_canvas_init(PwCanvas *self)
   PwPipewire *con = pw_pipewire_new (self);
   priv->controller = G_OBJECT (con);
 
+  gtk_widget_init_template(widget);
   g_object_set(gtk_widget_get_settings(widget), "gtk-dnd-drag-threshold" , 1, NULL);
 
-  priv->dr_src = gtk_drag_source_new();
-  // Capture because DnD should be triggered before drag gesture
-  gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(priv->dr_src), GTK_PHASE_CAPTURE);
-  gtk_drag_source_set_icon (priv->dr_src, NULL, 0, 0);
-  gtk_drag_source_set_actions (priv->dr_src, GDK_ACTION_MOVE);
-  g_signal_connect (priv->dr_src, "prepare", G_CALLBACK (prepare_cb), self);
-  g_signal_connect (priv->dr_src, "drag-begin", G_CALLBACK (drag_begin_cb), self);
-  g_signal_connect (priv->dr_src, "drag-end", G_CALLBACK (drag_end_cb), self);
-  g_signal_connect (priv->dr_src, "drag-cancel", G_CALLBACK (drag_cancel_cb), self);
-  gtk_widget_add_controller (widget, GTK_EVENT_CONTROLLER (priv->dr_src));
-
-  priv->dr_tgt = gtk_drop_target_new (PW_TYPE_NODE, GDK_ACTION_MOVE);
-  g_signal_connect (priv->dr_tgt, "drop", G_CALLBACK (drop_cb), self);
-  gtk_widget_add_controller (widget, GTK_EVENT_CONTROLLER (priv->dr_tgt));
-
-  priv->dr_motion = gtk_drop_controller_motion_new();
-  g_signal_connect (priv->dr_motion, "motion", G_CALLBACK (motion_cb), self);
-  gtk_widget_add_controller (widget, priv->dr_motion);
-
-  priv->gest_zoom = gtk_gesture_zoom_new();
-  g_signal_connect_swapped(priv->gest_zoom, "begin", G_CALLBACK(canvas_zgesture_begin), self);
-  g_signal_connect_swapped(priv->gest_zoom, "scale-changed", G_CALLBACK(canvas_zgesture_scale_change), self);
-  gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(priv->gest_zoom));
-
-  priv->gest_drag = gtk_gesture_drag_new();
-  gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(priv->gest_drag), GTK_PHASE_TARGET);
-  g_signal_connect_swapped(priv->gest_drag, "drag-begin", G_CALLBACK(canvas_drgesture_drag_begin), self);
-  g_signal_connect_swapped(priv->gest_drag, "drag-update", G_CALLBACK(canvas_drgesture_drag_update), self);
-  g_signal_connect_swapped(priv->gest_drag, "drag-end", G_CALLBACK(canvas_drgesture_drag_end), self);
-  gtk_widget_add_controller(widget, GTK_EVENT_CONTROLLER(priv->gest_drag));
-
   g_signal_connect(con, "changed", G_CALLBACK(pipewire_changed_cb), self);
-
-  gtk_widget_set_overflow(widget, GTK_OVERFLOW_HIDDEN);
-
   pw_pipewire_run(con);
 }
 

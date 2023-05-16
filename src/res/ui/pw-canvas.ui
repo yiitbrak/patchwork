@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="PwCanvas" parent="GtkWidget">
+    <property name="overflow">GTK_OVERFLOW_HIDDEN</property>
+    <child>
+      <object class="GtkDragSource">
+        <property name="propagation-phase">GTK_PHASE_CAPTURE</property>
+        <property name="actions">GDK_ACTION_MOVE</property>
+        <signal name="prepare" handler="canvas_dnd_prepare"/>
+        <signal name="drag-begin" handler="canvas_dnd_begin"/>
+        <signal name="drag-end" handler="canvas_dnd_end"/>
+        <signal name="drag-cancel" handler="canvas_dnd_cancel"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkDropTarget">
+        <property name="actions">GDK_ACTION_MOVE</property>
+        <property name="formats">PwNode</property>
+        <signal name="drop" handler="canvas_dnd_drop"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkDropControllerMotion">
+        <signal name="motion" handler="canvas_dnd_motion"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkGestureZoom">
+        <signal name="begin" handler="canvas_zgesture_begin"/>
+        <signal name="scale-changed" handler="canvas_zgesture_scale_change"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkGestureDrag">
+        <property name="propagation-phase">GTK_PHASE_TARGET</property>
+        <signal name="drag-begin" handler="canvas_drgesture_drag_begin" swapped="yes"/>
+        <signal name="drag-update" handler="canvas_drgesture_drag_update" swapped="yes"/>
+        <signal name="drag-end" handler="canvas_drgesture_drag_end" swapped="yes"/>
+      </object>
+    </child>
+  </template>
+</interface>
+
