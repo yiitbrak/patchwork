@@ -99,12 +99,13 @@ pw_pipewire_dispose (GObject *object)
 {
   PwPipewire *self = (PwPipewire *) object;
 
-  g_source_remove (self->idle_id);
+  g_source_remove(self->idle_id);
 
-  pw_proxy_destroy ((struct pw_proxy *) self->registry);
-  pw_core_disconnect (self->core);
-  pw_context_destroy (self->context);
-  pw_thread_loop_destroy (self->loop);
+  pw_thread_loop_stop(self->loop);
+  pw_proxy_destroy((struct pw_proxy *) self->registry);
+  pw_core_disconnect(self->core);
+  pw_context_destroy(self->context);
+  pw_thread_loop_destroy(self->loop);
 
   GList *l = self->nodes;
   g_list_free_full (g_steal_pointer (&self->nodes), free_nodes);
@@ -185,6 +186,7 @@ pipewire_calc_node_pos(PwPipewire *self, PwNodeData *dat, graphene_point_t *pos)
     pos->x = 20;
     i=0;
     break;
+  default:
   case CAT_DUPLEX:
   case CAT_OTHER:
     pos->x = segment+20;
