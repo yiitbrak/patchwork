@@ -4,7 +4,6 @@
 struct _PwZoomEntry
 {
   GtkWidget parent_instance;
-  GSimpleActionGroup *actions;
 
   GtkAdjustment *adj;
   GtkBox *hbox;
@@ -67,21 +66,6 @@ pw_zoom_entry_measure (GtkWidget *widget,
                        int *minimum_baseline,
                        int *natural_baseline);
 
-static GAction *
-pw_zoom_entry_lookup_action (GActionMap *action_map,
-                             const char *action_name);
-
-static void
-pw_zoom_entry_add_action (GActionMap *action_map,
-                          GAction *action);
-
-static void
-pw_zoom_entry_remove_action (GActionMap *action_map,
-                             const char *action_name);
-
-static void
-g_action_map_iface_init (GActionMapInterface *iface);
-
 static void
 pw_zoom_entry_icon_press (PwZoomEntry          *self,
                GtkEntryIconPosition  icon_pos,
@@ -95,23 +79,17 @@ pw_zoom_entry_activate (PwZoomEntry *self,
                         GtkEntry    *entry);
 
 static void
-pw_zoom_entry_set_value_action(GSimpleAction *simple,
-                               GVariant      *parameter,
-                               gpointer       user_data);
+pw_zoom_entry_set_value_action(GtkWidget  *widget,
+                               const char *action_name,
+                               GVariant   *parameter);
 
 static void
-pw_zoom_entry_increase_value_action(GSimpleAction *simple,
-                                    GVariant      *parameter,
-                                    gpointer       user_data);
+pw_zoom_entry_increase_value_action(GtkWidget  *widget,
+                                    const char *action_name,
+                                    GVariant   *parameter);
 ///////////////////////////////////////////////////////////
 
-static const GActionEntry zoom_entry_actions[] = {
-  { "set-value", pw_zoom_entry_set_value_action, "d" },
-  { "increase-value", pw_zoom_entry_increase_value_action, "d" },
-};
-
-G_DEFINE_FINAL_TYPE_WITH_CODE (PwZoomEntry, pw_zoom_entry, GTK_TYPE_WIDGET,
-                               G_IMPLEMENT_INTERFACE (G_TYPE_ACTION_MAP, g_action_map_iface_init))
+G_DEFINE_FINAL_TYPE(PwZoomEntry, pw_zoom_entry, GTK_TYPE_WIDGET)
 
 PwZoomEntry *
 pw_zoom_entry_new(GtkAdjustment *adjustment)
@@ -243,50 +221,6 @@ pw_zoom_entry_size_allocate (GtkWidget *widget, int width, int height, int basel
   gtk_widget_size_allocate (GTK_WIDGET (self->hbox), &al, -1);
 }
 
-static GAction *
-pw_zoom_entry_lookup_action (GActionMap *action_map,
-                             const char *action_name)
-{
-  PwZoomEntry *ze = PW_ZOOM_ENTRY (action_map);
-
-  if (!ze->actions)
-    return NULL;
-
-  return g_action_map_lookup_action (G_ACTION_MAP (ze->actions), action_name);
-}
-
-static void
-pw_zoom_entry_add_action (GActionMap *action_map,
-                          GAction *action)
-{
-  PwZoomEntry *ze = PW_ZOOM_ENTRY (action_map);
-
-  if (!ze->actions)
-    return;
-
-  g_action_map_add_action (G_ACTION_MAP (ze->actions), action);
-}
-
-static void
-pw_zoom_entry_remove_action (GActionMap *action_map,
-                             const char *action_name)
-{
-  PwZoomEntry *ze = PW_ZOOM_ENTRY (action_map);
-
-  if (!ze->actions)
-    return;
-
-  g_action_map_remove_action (G_ACTION_MAP (ze->actions), action_name);
-}
-
-static void
-g_action_map_iface_init (GActionMapInterface *iface)
-{
-  iface->lookup_action = pw_zoom_entry_lookup_action;
-  iface->add_action = pw_zoom_entry_add_action;
-  iface->remove_action = pw_zoom_entry_remove_action;
-}
-
 static void
 pw_zoom_entry_class_init (PwZoomEntryClass *klass)
 {
@@ -315,12 +249,18 @@ pw_zoom_entry_class_init (PwZoomEntryClass *klass)
                                                     "The GtkAdjustment belonging to this zoom entry",
                                                     GTK_TYPE_ADJUSTMENT ,G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
   g_object_class_install_properties (object_class, N_PROPS, properties);
+
+  // Set value of zoom to given value
+  gtk_widget_class_install_action(widget_class, "zoom_entry.set-value", "d", pw_zoom_entry_set_value_action);
+
+  // Increase/decrease value of zoom by given value
+  gtk_widget_class_install_action(widget_class, "zoom_entry.increase-value", "d", pw_zoom_entry_increase_value_action);
 }
 
 static void
-pw_zoom_entry_icon_press (PwZoomEntry *self,
-               GtkEntryIconPosition icon_pos,
-               GtkEntry *entry)
+pw_zoom_entry_icon_press(PwZoomEntry          *self,
+                         GtkEntryIconPosition  icon_pos,
+                         GtkEntry             *entry)
 {
   gtk_popover_popup (GTK_POPOVER (self->popover));
 }
@@ -362,20 +302,20 @@ pw_zoom_entry_activate (PwZoomEntry *self,
 }
 
 static void
-pw_zoom_entry_set_value_action(GSimpleAction *simple,
-                               GVariant      *parameter,
-                               gpointer       user_data)
+pw_zoom_entry_set_value_action(GtkWidget  *widget,
+                               const char *action_name,
+                               GVariant   *parameter)
 {
-  PwZoomEntry *ze = PW_ZOOM_ENTRY (user_data);
+  PwZoomEntry *ze = PW_ZOOM_ENTRY(widget);
   gtk_adjustment_set_value(ze->adj, g_variant_get_double (parameter));
 }
 
 static void
-pw_zoom_entry_increase_value_action(GSimpleAction *simple,
-                                    GVariant      *parameter,
-                                    gpointer       user_data)
+pw_zoom_entry_increase_value_action(GtkWidget  *widget,
+                                    const char *action_name,
+                                    GVariant   *parameter)
 {
-  PwZoomEntry *ze = PW_ZOOM_ENTRY (user_data);
+  PwZoomEntry *ze = PW_ZOOM_ENTRY (widget);
   gdouble newv = g_variant_get_double (parameter) + gtk_adjustment_get_value(ze->adj);
   gtk_adjustment_set_value(ze->adj, newv);
 }
@@ -385,13 +325,6 @@ pw_zoom_entry_init (PwZoomEntry *self)
 {
 // Initial values
   self->adj = NULL;
-
-// Actions
-  GtkWidget *widget = GTK_WIDGET (self);
-  self->actions = g_simple_action_group_new ();
-  gtk_widget_insert_action_group (widget, "zoom_entry", G_ACTION_GROUP (self->actions));
-  g_action_map_add_action_entries (G_ACTION_MAP (self), zoom_entry_actions,
-                                   G_N_ELEMENTS (zoom_entry_actions), self);
 
   gtk_widget_init_template (GTK_WIDGET (self));
 }
