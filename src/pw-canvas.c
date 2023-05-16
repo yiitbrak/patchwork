@@ -796,6 +796,7 @@ canvas_dnd_drop(GtkDropTarget *self,
 
   pw_node_set_xpos (nod, (x / priv->scale) - priv->dr_x);
   pw_node_set_ypos (nod, (y / priv->scale) - priv->dr_y);
+  gtk_widget_insert_before(GTK_WIDGET(nod), GTK_WIDGET(canv), NULL);
   priv->dr_obj = NULL;
 
   return TRUE;
