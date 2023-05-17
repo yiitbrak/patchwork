@@ -27,8 +27,8 @@
     </child>
     <child>
       <object class="GtkGestureZoom">
-        <signal name="begin" handler="canvas_zgesture_begin"/>
-        <signal name="scale-changed" handler="canvas_zgesture_scale_change"/>
+        <signal name="begin" handler="canvas_zgesture_begin" swapped="yes"/>
+        <signal name="scale-changed" handler="canvas_zgesture_scale_change" swapped="yes"/>
       </object>
     </child>
     <child>
