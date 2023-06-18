@@ -71,24 +71,41 @@ static GParamSpec *properties[N_PROPS];
 static void
 pw_canvas_dispose(GObject *object);
 
-static void pw_canvas_finalize (GObject *object);
+static void
+pw_canvas_finalize(GObject *object);
 
-static void pw_canvas_get_property (GObject *object, guint prop_id,
-                                    GValue *value, GParamSpec *pspec);
+static void
+pw_canvas_get_property(GObject    *object,
+                       guint       prop_id,
+                       GValue     *value,
+                       GParamSpec *pspec);
 
-static void pw_canvas_set_property (GObject *object, guint prop_id,
-                                    const GValue *value, GParamSpec *pspec);
+static void
+pw_canvas_set_property(GObject      *object,
+                       guint         prop_id,
+                       const GValue *value,
+                       GParamSpec   *pspec);
 
-static GtkSizeRequestMode pw_canvas_get_request_mode (GtkWidget *widget);
+static GtkSizeRequestMode
+pw_canvas_get_request_mode(GtkWidget *widget);
 
-static void pw_canvas_measure (GtkWidget *widget, GtkOrientation orientation,
-                               int for_size, int *minimum, int *natural,
-                               int *minimum_baseline, int *natural_baseline);
+static void
+pw_canvas_measure(GtkWidget      *widget,
+                  GtkOrientation  orientation,
+                  int             for_size,
+                  int            *minimum,
+                  int            *natural,
+                  int            *minimum_baseline,
+                  int            *natural_baseline);
 
-static void pw_canvas_size_allocate (GtkWidget *widget, int width, int height,
-                                     int baseline);
+static void
+pw_canvas_size_allocate(GtkWidget *widget,
+                        int        width,
+                        int        height,
+                        int        baseline);
 
-static void pw_canvas_snapshot (GtkWidget *widget, GtkSnapshot *snapshot);
+static void
+pw_canvas_snapshot(GtkWidget *widget, GtkSnapshot *snapshot);
 
 static GdkContentProvider *
 canvas_dnd_prepare(GtkDragSource *self,
@@ -250,34 +267,35 @@ set_controller(PwCanvas *self, PwViewController *control)
 }
 
 static void
-pw_canvas_get_property(GObject *object, guint prop_id, GValue *value,
+pw_canvas_get_property(GObject    *object,
+                       guint       prop_id,
+                       GValue     *value,
                        GParamSpec *pspec)
 {
   PwCanvasPrivate *self = pw_canvas_get_instance_private (PW_CANVAS (object));
 
-  switch (prop_id)
-    {
-    case PROP_HADJUSTMENT:
-      g_value_set_object(value, self->adj[GTK_ORIENTATION_HORIZONTAL]);
-      break;
-    case PROP_VADJUSTMENT:
-      g_value_set_object(value, self->adj[GTK_ORIENTATION_VERTICAL]);
-      break;
-    case PROP_HSCROLL_POLICY:
-      g_value_set_enum(value, self->scroll_policy[GTK_ORIENTATION_HORIZONTAL]);
-      break;
-    case PROP_VSCROLL_POLICY:
-      g_value_set_enum(value, self->scroll_policy[GTK_ORIENTATION_VERTICAL]);
-      break;
-    case PROP_ZOOM:
-      g_value_set_double (value, self->scale);
-      break;
-    case PROP_CONTROLLER:
-      g_value_set_object (value, self->controller);
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    }
+  switch (prop_id){
+  case PROP_HADJUSTMENT:
+    g_value_set_object(value, self->adj[GTK_ORIENTATION_HORIZONTAL]);
+    break;
+  case PROP_VADJUSTMENT:
+    g_value_set_object(value, self->adj[GTK_ORIENTATION_VERTICAL]);
+    break;
+  case PROP_HSCROLL_POLICY:
+    g_value_set_enum(value, self->scroll_policy[GTK_ORIENTATION_HORIZONTAL]);
+    break;
+  case PROP_VSCROLL_POLICY:
+    g_value_set_enum(value, self->scroll_policy[GTK_ORIENTATION_VERTICAL]);
+    break;
+  case PROP_ZOOM:
+    g_value_set_double (value, self->scale);
+    break;
+  case PROP_CONTROLLER:
+    g_value_set_object (value, self->controller);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+  }
 }
 
 static void
@@ -321,35 +339,36 @@ end:
 }
 
 static void
-pw_canvas_set_property(GObject *object, guint prop_id, const GValue *value,
-                       GParamSpec *pspec)
+pw_canvas_set_property(GObject      *object,
+                       guint         prop_id,
+                       const GValue *value,
+                       GParamSpec   *pspec)
 {
   PwCanvas *self = PW_CANVAS (object);
   PwCanvasPrivate *priv = pw_canvas_get_instance_private (self);
 
-  switch (prop_id)
-    {
-    case PROP_HADJUSTMENT:
-      set_adjustment(self, GTK_ORIENTATION_HORIZONTAL, g_value_get_object(value));
-      break;
-    case PROP_VADJUSTMENT:
-      set_adjustment(self, GTK_ORIENTATION_VERTICAL, g_value_get_object(value));
-      break;
-    case PROP_HSCROLL_POLICY:
-      set_scroll_policy(self,GTK_ORIENTATION_HORIZONTAL, g_value_get_enum(value));
-      break;
-    case PROP_VSCROLL_POLICY:
-      set_scroll_policy(self,GTK_ORIENTATION_VERTICAL, g_value_get_enum(value));
-      break;
-    case PROP_ZOOM:
-      canvas_set_zoom(self, g_value_get_double(value), NULL);
-      break;
-    case PROP_CONTROLLER:
-      set_controller (self, g_value_get_object (value));
-      break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    }
+  switch (prop_id){
+  case PROP_HADJUSTMENT:
+    set_adjustment(self, GTK_ORIENTATION_HORIZONTAL, g_value_get_object(value));
+    break;
+  case PROP_VADJUSTMENT:
+    set_adjustment(self, GTK_ORIENTATION_VERTICAL, g_value_get_object(value));
+    break;
+  case PROP_HSCROLL_POLICY:
+    set_scroll_policy(self,GTK_ORIENTATION_HORIZONTAL, g_value_get_enum(value));
+    break;
+  case PROP_VSCROLL_POLICY:
+    set_scroll_policy(self,GTK_ORIENTATION_VERTICAL, g_value_get_enum(value));
+    break;
+  case PROP_ZOOM:
+    canvas_set_zoom(self, g_value_get_double(value), NULL);
+    break;
+  case PROP_CONTROLLER:
+    set_controller (self, g_value_get_object (value));
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+  }
 }
 
 static GtkSizeRequestMode
