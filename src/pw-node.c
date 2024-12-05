@@ -205,7 +205,7 @@ pw_node_class_init (PwNodeClass *klass)
                           G_MININT32, G_MAXINT32, 0, G_PARAM_READWRITE);
   properties[PROP_TYPE] = g_param_spec_enum(
       "type", "Type", "Type of the node", PW_TYPE_PAD_TYPE,
-      PW_PAD_TYPE_OTHER, G_PARAM_READWRITE|G_PARAM_CONSTRUCT);
+        PW_PAD_TYPE_OTHER, G_PARAM_READWRITE|G_PARAM_CONSTRUCT);
   g_object_class_install_properties (object_class, N_PROPS, properties);
 
   signals[SIG_LINK_ADDED] = g_signal_new (

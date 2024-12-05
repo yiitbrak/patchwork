@@ -451,7 +451,11 @@ canvas_configure_adj(PwCanvas        *self,
                      uint             extra_alloc)
 {
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
-  GtkAdjustment* adj = (or==GTK_ORIENTATION_VERTICAL)?priv->adj[GTK_ORIENTATION_VERTICAL]:priv->adj[GTK_ORIENTATION_HORIZONTAL];
+  GtkAdjustment* adj =
+    (or==GTK_ORIENTATION_VERTICAL)?
+    priv->adj[GTK_ORIENTATION_VERTICAL]:
+    priv->adj[GTK_ORIENTATION_HORIZONTAL];
+
   if(!adj)
     return;
 
