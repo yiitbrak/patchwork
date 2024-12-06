@@ -629,8 +629,8 @@ reg_fill_link (Message *msg, guint32 id, const struct spa_dict *props)
   if (!str)
     g_error ("'out' returned NULL\n");
   dat->out = atoi (str);
-
   dat->id = id;
+  dat->selected = false;
 
   msg->data = dat;
 }

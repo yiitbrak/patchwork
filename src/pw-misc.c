@@ -149,11 +149,12 @@ cbezier_line_intersects (graphene_point_t l1, graphene_point_t l2,
 
   for (int i = 0; i < 3; i++)
   {
-    if (roots[i] != NAN && is_valid_bezier_root (roots[i]))
-      {
-        printf ("Intersection detected: %f\n", roots[i]);
+    if (roots[i] != NAN && (is_valid_bezier_root(roots[i])))
+    {
+      graphene_point_t r = curve_get_point (c1, c2, c3, c4, roots[i]);
+      if ((r.y >= l1.y) && (l2.y >= r.y) && (r.x >= l1.x) && (l2.x >= r.x))
         return true;
-      }
+    }
   }
   return false;
 }
