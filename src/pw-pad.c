@@ -38,14 +38,6 @@ static gint signals[N_SIG] = {
   0,
 };
 
-/**
- * pw_pad_new:
- *
- * Create a new #PwPad.
- *
- * Returns: (transfer full): a newly created #PwPad
- */
-
 PwPad *
 pw_pad_new (guint32 id, PwPadDirection dir, PwPadType type)
 {

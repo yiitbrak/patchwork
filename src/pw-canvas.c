@@ -3,22 +3,11 @@
 #include "pw-pipewire.h"
 #include "pw-node.h"
 #include "pw-view-controller.h"
+#include "pw-misc.h"
 
 #define MAX_ZOOM 5.0
 #define MIN_ZOOM 0.25
-#define CANV_EXTRA 100
-
-typedef struct
-{
-  gdouble scale;
-  gint dr_x, dr_y; // mouse ptr offsets in canvas units or link drag coordinates in screen units
-  GtkWidget *dr_obj;
-  GtkAdjustment *adj[2];
-  GtkScrollablePolicy scroll_policy[2];
-  gdouble zoom_gest_prev_scale;
-
-  GObject *controller;
-} PwCanvasPrivate;
+#define CANV_EXTRA 100 // units of allocation outside edge
 
 struct _PwRubberband
 {
@@ -48,6 +37,18 @@ pw_rubberband_class_init (PwRubberbandClass *klass)
 
 static void
 pw_rubberband_init (PwRubberband *self){}
+
+typedef struct
+{
+  gdouble scale;
+  gint dr_x, dr_y; // mouse ptr offsets in canvas units or link drag coordinates in screen units
+  GtkWidget *dr_obj;
+  GtkAdjustment *adj[2];
+  GtkScrollablePolicy scroll_policy[2];
+  gdouble zoom_gest_prev_scale;
+
+  GObject *controller;
+} PwCanvasPrivate;
 
 G_DEFINE_TYPE_WITH_CODE (PwCanvas, pw_canvas, GTK_TYPE_WIDGET,
                          G_IMPLEMENT_INTERFACE(GTK_TYPE_SCROLLABLE, NULL)
@@ -655,6 +656,97 @@ snapshot_links(GtkWidget* widget, GtkSnapshot* snapshot)
 }
 
 static void
+curve_collision_debug (PwCanvas* canv, GtkWidget* rb, GtkSnapshot *snapshot)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
+
+  GList *links = pw_view_controller_get_link_list (priv->controller);
+  graphene_rect_t rb_al;
+  bool comres = gtk_widget_compute_bounds (GTK_WIDGET (rb), GTK_WIDGET (canv), &rb_al);
+  if(!comres){
+    printf("x: %f y: %f  w: %f h: %f\n", rb_al.origin.x, rb_al.origin.y, rb_al.size.width, rb_al.size.height);
+    return;
+  }
+  graphene_point_t l1 = { rb_al.origin.x, rb_al.origin.y };
+  graphene_point_t l2 = { rb_al.origin.x, rb_al.origin.y + rb_al.size.height };
+
+  while (links)
+    {
+      PwLinkData *link = links->data;
+      PwPad *p1 = pw_view_controller_get_pad_by_id (
+          G_OBJECT (priv->controller), link->out);
+      PwPad *p2 = pw_view_controller_get_pad_by_id (
+          G_OBJECT (priv->controller), link->in);
+      graphene_rect_t rect1, rect2;
+      gboolean res = gtk_widget_compute_bounds (GTK_WIDGET (p1),
+                                                GTK_WIDGET (canv), &rect1);
+      res &= gtk_widget_compute_bounds (GTK_WIDGET (p2), GTK_WIDGET (canv),
+                                        &rect2);
+      if (!res)
+        {
+          g_warning ("Bounds checking failed");
+        }
+
+      int x1, x2, y1, y2, ydiff, xdiff;
+
+      x1 = rect1.origin.x + rect1.size.width;
+      y1 = rect1.origin.y + rect1.size.height / 2;
+
+      x2 = rect2.origin.x;
+      y2 = rect2.origin.y + rect2.size.height / 2;
+
+      ydiff = ABS (y1 - y2);
+      xdiff = ABS (x1 - x2);
+
+      graphene_point_t c1 = { x1, y1 };
+      graphene_point_t c2 = { x1 + xdiff / 2 + ydiff / 4, y1 };
+      graphene_point_t c3 = { x2 - 10 - xdiff / 2 - ydiff / 4, y2 };
+      graphene_point_t c4 = { x2, y2 };
+
+      graphene_rect_t al;
+      gboolean success = gtk_widget_compute_bounds (GTK_WIDGET(canv), GTK_WIDGET(canv), &al);
+      graphene_rect_t canv_rect
+          = GRAPHENE_RECT_INIT (0, 0, al.size.width, al.size.height);
+      graphene_point_t pts[4] = { c1, c2, c3, c4 };
+      align_curve (pts, l1, l2);
+      cairo_t *cai = gtk_snapshot_append_cairo (snapshot, &canv_rect);
+
+      cairo_move_to (cai, pts[0].x, pts[0].y);
+      cairo_set_source_rgba (cai, 1.0, 0.0, 0.0, 0.6);
+      cairo_set_line_width (cai, 2 * priv->scale);
+      cairo_curve_to (cai, pts[1].x, pts[1].y, pts[2].x, pts[2].y, pts[3].x,
+                      pts[3].y);
+      cairo_stroke (cai);
+
+      double *roots = get_cubic_roots (pts[0].y, pts[1].y, pts[2].y, pts[3].y);
+
+      for (int i = 0; i < 3; i++)
+        {
+          if (roots[i] != NAN && (0 < roots[i]) && (roots[i] < 1))
+            {
+              graphene_point_t r = curve_get_point (c1, c2, c3, c4, roots[i]);
+              if ((r.y >= l1.y && l2.y >= r.y) && r.x == l1.x)
+                { // for some reason, under certain circumstances there is an
+                  // incorrect root around 0.5, no idea why.
+                  cairo_set_source_rgba (cai, 0.0, 1.0, 0.0, 0.6);
+                }
+              else
+                {
+                  cairo_set_source_rgba (cai, 1.0, 0.0, 0.0, 0.6);
+                }
+              cairo_set_line_width (cai, 15);
+              cairo_set_line_cap (cai, CAIRO_LINE_CAP_ROUND);
+              cairo_move_to (cai, r.x - 0.5, r.y - 0.5);
+              cairo_line_to (cai, r.x + 0.5, r.y + 0.5);
+              cairo_stroke (cai);
+            }
+        }
+
+      links = links->next;
+    }
+}
+
+static void
 snapshot_rubberband(GtkWidget* widget, GtkSnapshot* snapshot)
 {
   PwCanvas* canv = PW_CANVAS(widget);
@@ -662,9 +754,10 @@ snapshot_rubberband(GtkWidget* widget, GtkSnapshot* snapshot)
 
   GtkWidget *rb = g_object_get_data(G_OBJECT(canv), "rubberband");
 
-  if(rb){
-    gtk_widget_snapshot_child(widget, rb, snapshot);
-  }
+  if (rb){
+    gtk_widget_snapshot_child (widget, rb, snapshot);
+  } else return;
+  curve_collision_debug(canv, rb, snapshot);
 }
 
 static void
@@ -708,6 +801,8 @@ pw_canvas_class_init(PwCanvasClass *klass)
 
   g_type_ensure(PW_TYPE_NODE); // for GtkDropTarget's format
   gtk_widget_class_set_template_from_resource(widget_class, "/org/nidi/patchwork/res/ui/pw-canvas.ui");
+
+// signals
   gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_prepare);
   gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_begin);
   gtk_widget_class_bind_template_callback(widget_class, canvas_dnd_end);

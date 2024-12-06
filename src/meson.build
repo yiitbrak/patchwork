@@ -9,12 +9,15 @@ pw_sources = [
   'pw-dummy.c',
   'pw-pipewire.c',
   'pw-zoom-entry.c',
+  'pw-misc.c',
 ]
 
+libm = cc.find_library('m', required : true)
 pw_deps = [
   dependency('gtk4'),
   dependency('libadwaita-1'),
   dependency('libpipewire-0.3'),
+  libm,
 ]
 
 pw_sources += gnome.compile_resources('pw-resources',
