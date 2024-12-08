@@ -74,10 +74,10 @@ pw_application_about_action (GSimpleAction *action, GVariant *parameter,
 
   window = gtk_application_get_active_window (GTK_APPLICATION (self));
 
-  adw_show_about_window (
-      window, "application-name", "patchwork", "application-icon",
+  adw_show_about_dialog (
+      GTK_WIDGET(window), "application-name", "patchwork", "application-icon",
       "org.nidi.patchwork", "developer-name", "Yiğit", "version", "0.1.0",
-      "developers", developers, "copyright", "© 2023 Yiğit", NULL);
+      "developers", developers, "copyright", "© 2024 Yiğit", NULL);
 }
 
 static void
