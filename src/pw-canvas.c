@@ -487,13 +487,14 @@ canvas_configure_adj(PwCanvas        *self,
   gtk_adjustment_configure(adj, value, lower, upper, step_inc, page_inc, page_size);
 }
 
-static void
-check_link_rubberband_selection(PwCanvas* self, PwRubberband* rb){
+static bool
+check_link_rubberband_selection(PwCanvas* self, PwRubberband* rb, PwLinkData* link)
+{
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
   GList *links = pw_view_controller_get_link_list (priv->controller);
   graphene_rect_t rb_al;
   if(!gtk_widget_compute_bounds (GTK_WIDGET (rb), GTK_WIDGET (self), &rb_al)){
-    return;
+    return false;
   }
 
   /* 
@@ -506,19 +507,45 @@ check_link_rubberband_selection(PwCanvas* self, PwRubberband* rb){
   graphene_point_t l3 = { rb_al.origin.x + rb_al.size.width, rb_al.origin.y + rb_al.size.height };
   graphene_point_t l4 = { rb_al.origin.x, rb_al.origin.y + rb_al.size.height };
 
+  graphene_point_t cpts[4];
+  get_curve_control_points(self, link, cpts);
+  
+  bool is_intersecting =
+    cbezier_line_intersects(l1, l2, cpts[0], cpts[1], cpts[2], cpts[3])||
+    cbezier_line_intersects(l2, l3, cpts[0], cpts[1], cpts[2], cpts[3])||
+    cbezier_line_intersects(l4, l3, cpts[0], cpts[1], cpts[2], cpts[3])||
+    cbezier_line_intersects(l1, l4, cpts[0], cpts[1], cpts[2], cpts[3]);
+  
+  return is_intersecting;
+}
+
+static bool
+check_curve_bounding_box_rubberband(PwCanvas* self, PwRubberband* rb, PwLinkData* link)
+{
+  graphene_point_t pts[4];
+  get_curve_control_points(self, link, pts);
+  graphene_rect_t curve_box = get_cbezier_bounding_box(pts[0], pts[1], pts[2], pts[3]);
+
+  graphene_rect_t al;
+  if(!gtk_widget_compute_bounds (GTK_WIDGET (rb), GTK_WIDGET (self), &al)){
+    return false;
+  }
+
+  return rect_contains_rect(al, curve_box);
+}
+
+static void
+check_link_selection(PwCanvas* self, PwRubberband* rb)
+{
+  PwCanvasPrivate* priv = pw_canvas_get_instance_private(self);
+  GList *links = pw_view_controller_get_link_list (priv->controller);
+
   while(links){
     PwLinkData* link = links->data;
 
-    graphene_point_t cpts[4];
-    get_curve_control_points(self, link, cpts);
+    bool is_selected = check_link_rubberband_selection(self, rb, link) || check_curve_bounding_box_rubberband(self, rb, link);
 
-    bool is_intersecting =
-      cbezier_line_intersects(l1, l2, cpts[0], cpts[1], cpts[2], cpts[3])||
-      cbezier_line_intersects(l2, l3, cpts[0], cpts[1], cpts[2], cpts[3])||
-      cbezier_line_intersects(l4, l3, cpts[0], cpts[1], cpts[2], cpts[3])||
-      cbezier_line_intersects(l1, l4, cpts[0], cpts[1], cpts[2], cpts[3]);
-    
-    link->selected = is_intersecting;
+    link->selected = is_selected;
     links = links->next;
   }
 }
@@ -544,7 +571,7 @@ pw_canvas_size_allocate(GtkWidget *widget, int width, int height,
   if(rb){
     gtk_widget_size_allocate(GTK_WIDGET(rb), &rb->al, -1);
   } else return;
-  check_link_rubberband_selection(self, rb);
+  check_link_selection(self, rb);
 
 }
 
@@ -595,14 +622,6 @@ snapshot_nodes(GtkWidget *widget, GtkSnapshot *snapshot)
     gtk_widget_snapshot_child (widget, GTK_WIDGET(nodes->data), snapshot);
     nodes = nodes->next;
   }
-}
-
-// 3rd argument is first's weight, 0<weight<1
-static double
-weighted_color_mix(double first, double second, double weight)
-{
-  g_assert(0<weight&&weight<1);
-  return (first*weight + first*(1-weight))/2;
 }
 
 static void
@@ -693,74 +712,86 @@ snapshot_links(GtkWidget* widget, GtkSnapshot* snapshot)
   cairo_destroy(cai);
 }
 
+// ugly, hard to read and probably commits multiple warcrimes
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 static void
 curve_collision_debug (PwCanvas* canv, GtkWidget* rb, GtkSnapshot *snapshot)
 {
+  graphene_rect_t canv_bounds;
+  if(!gtk_widget_compute_bounds (GTK_WIDGET (canv), GTK_WIDGET (canv), &canv_bounds)){
+    return;
+  }
+  cairo_t *cai = gtk_snapshot_append_cairo (snapshot, &canv_bounds);
   PwCanvasPrivate* priv = pw_canvas_get_instance_private(canv);
 
   GList *links = pw_view_controller_get_link_list (priv->controller);
   graphene_rect_t rb_al;
   if(!gtk_widget_compute_bounds (GTK_WIDGET (rb), GTK_WIDGET (canv), &rb_al)){
-    printf("x: %f y: %f  w: %f h: %f\n", rb_al.origin.x, rb_al.origin.y, rb_al.size.width, rb_al.size.height);
     return;
   }
   graphene_point_t l1 = { rb_al.origin.x, rb_al.origin.y };
   graphene_point_t l2 = { rb_al.origin.x, rb_al.origin.y + rb_al.size.height };
+  graphene_point_t l3 = { rb_al.origin.x + rb_al.size.width, rb_al.origin.y };
+  graphene_point_t lbweh = l2;
 
   while (links)
+  {
+    PwLinkData *link = links->data;
+    
+    graphene_point_t cpts[4];
+    get_curve_control_points(canv, link, cpts);
+    bool redo_once = true;
+    double roots[3];
+redo_align:
+    graphene_point_t aligned_pts[4] = { cpts[0], cpts[1], cpts[2], cpts[3] };
+    align_curve(aligned_pts, l1, lbweh);
+    get_cubic_roots (aligned_pts[0].y, aligned_pts[1].y, aligned_pts[2].y, aligned_pts[3].y, roots);
+
+    for (int i = 0; i < 3; i++)
     {
-      PwLinkData *link = links->data;
-      
-      graphene_point_t cpts[4];
-      get_curve_control_points(canv, link, cpts);
-
-      graphene_rect_t al;
-      gboolean success = gtk_widget_compute_bounds (GTK_WIDGET(canv), GTK_WIDGET(canv), &al);
-      graphene_rect_t canv_rect
-          = GRAPHENE_RECT_INIT (0, 0, al.size.width, al.size.height);
-      graphene_point_t aligned_pts[4] = { cpts[0], cpts[1], cpts[2], cpts[3] };
-      align_curve (aligned_pts, l1, l2);
-      cairo_t *cai = gtk_snapshot_append_cairo (snapshot, &canv_rect);
-
-      cairo_move_to (cai, aligned_pts[0].x, aligned_pts[0].y);
-      if(cbezier_line_intersects(l1, l2, cpts[0], cpts[1], cpts[2], cpts[3])){
-        cairo_set_source_rgba (cai, 0.0, 1.0, 0.0, 0.6);
-      }else{
-        cairo_set_source_rgba (cai, 1.0, 0.0, 0.0, 0.6);
-      }
-      cairo_set_line_width (cai, 2 * priv->scale);
-      cairo_curve_to (cai, aligned_pts[1].x, aligned_pts[1].y, aligned_pts[2].x, aligned_pts[2].y, aligned_pts[3].x,
-                      aligned_pts[3].y);
-      cairo_stroke (cai);
-
-      double *roots = get_cubic_roots (aligned_pts[0].y, aligned_pts[1].y, aligned_pts[2].y, aligned_pts[3].y);
-
-      for (int i = 0; i < 3; i++)
+      //printf("%f\n", roots[i]);
+      if (roots[i] != NAN && (0 < roots[i]) && (roots[i] < 1))
+      {
+        graphene_point_t r = curve_get_point (cpts[0], cpts[1], cpts[2], cpts[3], roots[i]);
+        if(rb_al.size.width > 500){
+          printf(" ");}
+        if ((r.y >= l1.y && lbweh.y >= r.y) && (r.x >= l1.x && lbweh.x >= r.x))
         {
-          if (roots[i] != NAN && (0 < roots[i]) && (roots[i] < 1))
-            {
-              graphene_point_t r = curve_get_point (cpts[0], cpts[1], cpts[2], cpts[3], roots[i]);
-              if ((r.y >= l1.y && l2.y >= r.y) && r.x == l1.x)
-                { // for some reason, under certain circumstances there is an
-                  // incorrect root around 0.5, no idea why.
-                  cairo_set_source_rgba (cai, 0.0, 1.0, 0.0, 0.6);
-                }
-              else
-                {
-                  cairo_set_source_rgba (cai, 1.0, 0.0, 0.0, 0.6);
-                }
-              cairo_set_line_width (cai, 15);
-              cairo_set_line_cap (cai, CAIRO_LINE_CAP_ROUND);
-              cairo_move_to (cai, r.x - 0.5, r.y - 0.5);
-              cairo_line_to (cai, r.x + 0.5, r.y + 0.5);
-              cairo_stroke (cai);
-            }
+          cairo_set_source_rgba (cai, 0.0, 1.0, 0.0, 0.6);
+        } else
+        {
+          cairo_set_source_rgba (cai, 1.0, 0.0, 0.0, 0.6);
         }
-
-      links = links->next;
+        cairo_set_line_width (cai, 10);
+        cairo_set_line_cap (cai, CAIRO_LINE_CAP_ROUND);
+        cairo_move_to (cai, r.x - 0.5, r.y - 0.5);
+        cairo_line_to (cai, r.x + 0.5, r.y + 0.5);
+        cairo_stroke (cai);
+      }
     }
+    if(redo_once)
+    {
+      redo_once = false;
+      lbweh = l3;
+      goto redo_align;
+    } else lbweh = l2;
+    
+    if(rect_contains_rect(rb_al ,get_cbezier_bounding_box(cpts[0],cpts[1],cpts[2],cpts[3])))
+    {
+      cairo_set_source_rgba (cai, 0.0, 1.0, 0.0, 0.5);
+    } else
+    {
+      cairo_set_source_rgba (cai, 1.0, 0.0, 0.0, 0.5);
+    }
+    
+    cairo_set_line_width(cai, 1);
+    graphene_rect_t bounding_box = get_cbezier_bounding_box(cpts[0], cpts[1], cpts[2], cpts[3]);
+    cairo_rectangle(cai, bounding_box.origin.x, bounding_box.origin.y, bounding_box.size.width, bounding_box.size.height);
+    cairo_stroke(cai);
+    links = links->next;
+  }
+  cairo_destroy(cai);
 }
 #pragma GCC diagnostic pop
 
